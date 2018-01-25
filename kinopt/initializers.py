@@ -7,78 +7,19 @@ numpy implementations of keras initializers
 
 """
 import numpy as np
-
-class BaseInitializer(object):
-    def __init__(self):
-        pass
-    def __call__(self):
-        raise NotImplementedError
-    
-    def get_config(self):
-        pass
-    @classmethod
-    def from_config(cls, config):
-        pass
-    
-class Zeros(BaseInitializer):
-    
-    def __call__(self, shape, dtype=None):
-        return np.zeros(shape=shape,dtype=dtype)
-    
-class Ones(BaseInitializer):
-    
-    def __call__(self, shape, dtype=None):
-        return np.ones(shape=shape,dtype=dtype)
-    
-
-class Constant(BaseInitializer):
-    
-    def __init__(self, value=0):
-        self.value = value
-
-    def __call__(self, shape, dtype=None):
-        return np.ones(shape=shape,dtype=dtype)*self.value
-
-    def get_config(self):
-        return {'value': self.value}
-    
-class RandomNormal(BaseInitializer):
-    
-    def __init__(self, mean=0., stddev=0.05, seed=None):
-        self.mean = mean
-        self.stddev = stddev
-        self.seed = seed
-    def __call__(self, shape, dtype=None):
-        if self.seed:
-            np.random.seed(self.seed)
-        return np.random.normal(size=shape, 
-                                loc=self.mean, 
-                                scale=self.stddev).astype(dtype)
-
-    def get_config(self):
-        return {
-            'mean': self.mean,
-            'stddev': self.stddev,
-            'seed': self.seed
-        }
-
-class RandomUniform(BaseInitializer):
+from keras import initializers
+from keras import backend as K
 
 
-    def __init__(self, minval=-0.05, maxval=0.05, seed=None):
-        self.minval = minval
-        self.maxval = maxval
-        self.seed = seed
-
-    def __call__(self, shape, dtype=None):
-        if self.seed:
-            np.random.seed(self.seed)
-        return np.random.uniform(size=shape, 
-                                low=self.minval, 
-                                high=self.maxval).astype(dtype)
-    def get_config(self):
-        return {
-            'minval': self.minval,
-            'maxval': self.maxval,
-            'seed': self.seed,
-        }
+def build_input(initializer,shape,dtype=None):
+    tensor_input = initializer(shape,dtype)
+    x = tensor_input.eval(session=K.get_session())
+    return x
+if __name__ == '__main__':
+    bb = {'class_name':'RandomUniform',
+          'config':{'minval':-1.0,
+                    'maxval':1.0
+                  }
+          }
+    aa = initializers.get(bb)
+    x = build_input(aa,(1,2,3))

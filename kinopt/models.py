@@ -9,6 +9,7 @@ import tensorflow as tf
 import json
 import h5py
 import keras
+from keras import backend as K
 from keras.engine import topology
 from keras.models import model_from_config
 from .layers import kinopt_layers
@@ -20,7 +21,7 @@ def load_model(filepath,inserted_layers=None,
     """loads model like keras load_model, updates the input layer,
         as well inserts extra layers after the input
     """
-
+    K.set_learning_phase(False)
 
     if (initial_inputs is not None 
         and not isinstance(initial_inputs,list)):

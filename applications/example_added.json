@@ -1,0 +1,61 @@
+{
+"added_layers":
+    [
+      [
+        {
+        "class_name":"Cholesky2D",
+        "config":
+          {
+            "name":"cholesky1"
+          },
+        "name":"cholesky1"
+        },
+        {
+        "class_name":"Jitter2D",
+        "config":
+          {
+            "jitter":16,
+            "name":"jitter1"
+          },
+        "name":"jitter1"
+        },
+        {
+        "class_name":"RandomResize2D",
+        "config":
+          {
+            "resize_vals":[0.95,0.975,1.0,1.025,1.05],
+            "name":"resize1"
+          },
+        "name":"resize1"
+        },
+        {
+        "class_name":"RandomRotate2D",
+        "config":
+          {
+            "rotate_vals":[-5.0,-4.0,-3.0,-2.0,-1.0,0.0,1.0,2.0,3.0,4.0,5.0],
+            "name":"rotate1"
+          },
+        "name":"rotate1"
+        },
+        {
+        "class_name":"Jitter2D",
+        "config":
+          {
+            "jitter":8,
+            "name":"jitter2"
+          },
+        "name":"jitter2"
+        }
+      ]
+    ],
+
+"custom_objects":{},
+"initializer":
+    {
+    "class_name":"RandomUniform",
+    "config":{
+                "minval":-1.0,
+                "maxval":1.0
+              }
+    }
+}

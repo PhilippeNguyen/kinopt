@@ -138,6 +138,6 @@ class Cholesky2D(Layer):
         config = {'axis':self.axis}
         base_config = super(Cholesky2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-    
+
     
 kinopt_layers = globals()

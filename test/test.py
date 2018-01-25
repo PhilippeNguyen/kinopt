@@ -49,7 +49,6 @@ if __name__ == '__main__':
         with open(added_json,'r') as f:
             added_json = json.load(f)
             
-    print('hello')
     model = kinopt.models.load_model(args.model,initial_inputs=init_img,
                                      inserted_layers=added_json)
     
