@@ -139,5 +139,34 @@ class Cholesky2D(Layer):
         base_config = super(Cholesky2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-    
+class RandomRoll2D(Layer):
+    def __init__(self,max_roll=None,
+             **kwargs):
+        super(RandomRoll2D, self).__init__(**kwargs)
+        self.max_roll = max_roll
+    def call(self,x):
+        x_shape = x.get_shape()
+        _,h,w,_ =  x_shape.as_list()
+        if self.max_roll is None:
+            y_roll = tf.random_uniform([],0,
+                                maxval=h,dtype=tf.int32)
+            x_roll = tf.random_uniform([],0,
+                                        maxval=w,dtype=tf.int32)
+        else:
+            y_roll = tf.random_uniform([],0,maxval=self.max_roll,
+                                       dtype=tf.int32)
+            x_roll = tf.random_uniform([],0,maxval=self.max_roll,
+                                        dtype=tf.int32)
+        if K.image_dim_ordering() =='tf':
+            x= tf.concat([x[:,y_roll:,:,:], x[:,:y_roll,:,:]], axis=1)
+            x= tf.concat([x[:,:,x_roll:,:], x[:,:,:x_roll,:]], axis=2)
+        else:
+            x= tf.concat([x[:,:,y_roll:,:], x[:,:,:y_roll,:]], axis=2)
+            x= tf.concat([x[:,:,:,x_roll:], x[:,:,:,:x_roll]], axis=3)
+        x.set_shape(x_shape)
+        return x
+    def get_config(self):
+        config = {'max_roll':self.max_roll}
+        base_config =super(RandomRoll2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 kinopt_layers = globals()
