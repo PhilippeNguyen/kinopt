@@ -12,6 +12,7 @@ import keras
 from keras import backend as K
 from keras.engine import topology
 from keras.models import model_from_config
+from keras import backend as K
 from .layers import kinopt_layers
 #TODO: FIXIXI
 def load_model(filepath,inserted_layers=None,
@@ -68,9 +69,16 @@ def load_model(filepath,inserted_layers=None,
 
         topology.load_weights_from_hdf5_group_by_name(f,model.layers)
         return model
-    
-    
 
+
+def check_tensor(x):
+    if  isinstance(x, (tf.Tensor,
+                      tf.Variable,
+                      tf.SparseTensor)):
+        return True
+    else:
+        return False
+    
 def update_config(config,added_layers=None,initial_inputs=None):
     input_layers = config['input_layers']
 
@@ -78,6 +86,13 @@ def update_config(config,added_layers=None,initial_inputs=None):
     if added_layers is None:
         added_layers = [[] for _ in input_names]
     
+    #check to make sure initial inputs are of the same fights
+    if initial_inputs:
+        is_tensor = check_tensor(initial_inputs[0])
+        for init_input in initial_inputs:
+            assert check_tensor(init_input) == is_tensor, (
+                    "initial inputs must be either all keras tensors or all"
+                    " numpy arrays")
     
     layers = config['layers']
     for input_idx,input_name in enumerate(input_names):
@@ -91,8 +106,13 @@ def update_config(config,added_layers=None,initial_inputs=None):
             if (layer['name'] == input_name 
                 and initial_inputs[input_idx] is not None):
                 layer_config = layer['config']
-                layer_config['batch_input_shape'] = list(initial_inputs[input_idx].shape)
-                og_input_idx = input_idx
+                
+                
+                if check_tensor(initial_inputs[input_idx]):
+                    layer_config['input_tensor'] = initial_inputs[input_idx]
+                    layer_config['batch_input_shape'] = list(initial_inputs[input_idx].get_shape().as_list())
+                else:
+                    layer_config['batch_input_shape'] = list(initial_inputs[input_idx].shape)
                 og_input_name = layer['name'] 
                 
         #this is done after loop in order to not mess with layers list during loop

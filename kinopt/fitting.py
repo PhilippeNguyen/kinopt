@@ -8,6 +8,7 @@ import keras
 from keras import backend as K
 import sys
 from .optimizers import get_input_updates
+import keras.backend as K
 
 def input_fit(model,loss,optimizer,init_img,num_iter=500):
     
@@ -24,6 +25,7 @@ def input_fit(model,loss,optimizer,init_img,num_iter=500):
     
     img = init_img
     for i in range(num_iter):
+
         this_loss,this_grad = opt_func([img])
         img +=this_grad
         sys.stdout.write('\r>> iter: %d , loss: %f' % (i,this_loss))
@@ -52,3 +54,28 @@ def input_fit_standardized(model,loss,optimizer,init_img,outer_lr,
         sys.stdout.write('\r>> iter: %d , loss: %f' % (i,this_loss))
         sys.stdout.flush()
     return img
+
+#TODO:Remove
+#def input_fit_tensor(model,loss,optimizer,num_iter=500):
+#
+#    
+#    model_input = model.input
+#
+#
+#    optimizer_updates = optimizer.get_updates(loss=[loss],
+#                                             params=[model_input],
+#                                             )
+#    
+#    
+#    opt_func = K.function([model_input],
+#                         [loss],
+#                         updates=optimizer_updates,
+#                         name='input_optimizer')
+#    
+#    for i in range(num_iter):
+#        aa = model_input.eval(session=K.get_session())
+#        this_loss = opt_func([aa])
+#
+#        sys.stdout.write('\r>> iter: %d , loss: %f' % (i,this_loss))
+#        sys.stdout.flush()
+#    return model_input

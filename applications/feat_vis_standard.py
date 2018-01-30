@@ -140,6 +140,7 @@ if __name__ == '__main__':
     
     if 'initializer' in config_json:
         initializer = keras.initializers.get(config_json['initializer'])
+#        init_img = initializer(img_shape,np.float32)
         init_img = kinopt.initializers.build_input(initializer,img_shape,
                                                    dtype=np.float32)
     else:
@@ -170,7 +171,9 @@ if __name__ == '__main__':
     
     
     #Fit/save output
+
     out = kinopt.fitting.input_fit(model,loss,optimizer,
                                    init_img,num_iter=args.num_iter)
+
     proc_img = kinopt.utils.visstd(out[0])
     imageio.imsave(output,proc_img)
