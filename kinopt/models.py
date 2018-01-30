@@ -113,6 +113,7 @@ def update_config(config,added_layers=None,initial_inputs=None):
                     layer_config['batch_input_shape'] = list(initial_inputs[input_idx].get_shape().as_list())
                 else:
                     layer_config['batch_input_shape'] = list(initial_inputs[input_idx].shape)
+                og_input_idx = input_idx
                 og_input_name = layer['name'] 
                 
         #this is done after loop in order to not mess with layers list during loop
