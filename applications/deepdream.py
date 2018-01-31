@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Jan 20 22:38:18 2018
+Created on Wed Jan 31 00:25:23 2018
 
 """
+
 
 import imageio
 import keras
@@ -70,14 +71,6 @@ default_json = {
     ],
 
 "custom_objects":{},
-"initializer":
-    {
-    "class_name":"RandomUniform",
-    "config":{
-                "minval":-1.0,
-                "maxval":1.0
-              }
-    }
 }
 
     
@@ -86,6 +79,9 @@ if __name__ == '__main__':
     parser.add_argument('--model', action='store', dest='model',
                         required=True,
             help='model path')
+    parser.add_argument('--image', action='store', dest='image',
+                        required=True,
+            help='path to image to use for deepdream')
     parser.add_argument('--output', action='store', dest='output',
                         required=True,
             help='output path')
@@ -104,13 +100,10 @@ if __name__ == '__main__':
                         help=('json configuration for added json.'
                               'If None, uses default configuration'))
     
-    parser.add_argument('--image_size', action='store',
-                        dest='image_size',
-                        default=224,type=int,
-                        help='height and width of the image')
+
     parser.add_argument('--num_iter', action='store',
                         dest='num_iter',
-                        default=2000,type=int,
+                        default=25,type=int,
                         help='number of optimization iterations')
 
     args = parser.parse_args()
@@ -135,17 +128,9 @@ if __name__ == '__main__':
         config_json = default_json
     
     #Preprocessing
-    image_size =args.image_size
-    img_shape = (1,image_size,image_size,3)
-    
-    if 'initializer' in config_json:
-        initializer = keras.initializers.get(config_json['initializer'])
-#        init_img = initializer(img_shape,np.float32)
-        init_img = kinopt.initializers.build_input(initializer,img_shape,
-                                                   dtype=np.float32)
-    else:
-        init_img = np.random.uniform(low=-1,high=1,
-                                 size=(1,img_shape[1],img_shape[2],3))
+    img = np.float32(imageio.imread(args.image))
+    img = kinopt.preprocessors.tf_preprocessor(img)
+    img = np.expand_dims(img,axis=0)
     
     #Load Model
     if 'custom_objects' in config_json:
@@ -159,21 +144,21 @@ if __name__ == '__main__':
     else:
         added_layers = None
             
-    model = kinopt.models.load_model(args.model,initial_inputs=init_img,
+    model = kinopt.models.load_model(args.model,initial_inputs=img,
                                      inserted_layers=added_layers,
                                      custom_objects=custom_objs)
     
     #compile (make loss, make updates)
-    loss_build = kinopt.losses.neuron_activation(neuron_index=args.neuron_index,
-                                           layer_identifier=layer_identifier)
+    loss_build = kinopt.losses.L2(neuron_index=args.neuron_index,
+                                  layer_identifier=layer_identifier)
     loss = loss_build.compile(model)
-    optimizer = keras.optimizers.Adam(lr=0.1)
+    optimizer = keras.optimizers.Adam(lr=0.05)
     
     
     #Fit/save output
 
     out = kinopt.fitting.input_fit(model,loss,optimizer,
-                                   init_img,num_iter=args.num_iter)
+                                   img,num_iter=args.num_iter)
 
-    proc_img = kinopt.preprocessors.visstd(out[0])
+    proc_img = kinopt.preprocessors.tf_deprocessor(out[0])
     imageio.imsave(output,proc_img)

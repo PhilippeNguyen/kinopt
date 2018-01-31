@@ -38,22 +38,51 @@ class BaseLoss(object):
         return layer_output
     
 class neuron_activation(BaseLoss):
-    def __init__(self,neuron_index=0,layer_identifier=None):
+    def __init__(self,neuron_index=None,**kwargs):
+        super(neuron_activation, self).__init__(**kwargs)
         self.neuron_index = neuron_index
-        self.layer_identifier = layer_identifier
     def loss_from_tensor(self,input_tensor):
-        if K.image_dim_ordering() =='tf':
-            return -(K.mean(input_tensor[...,self.neuron_index]))
-        elif K.image_dim_ordering() =='th':
-            return -(K.mean(input_tensor[:,self.neuron_index,...]))
+        if self.neuron_index is None:
+            if K.image_dim_ordering() =='tf':
+                return -(K.mean(input_tensor))
+            elif K.image_dim_ordering() =='th':
+                return -(K.mean(input_tensor))
+            else:
+                raise Exception('image_dim_ordering not understood') 
         else:
-            raise Exception('image_dim_ordering not understood') 
+            
+            if K.image_dim_ordering() =='tf':
+                return -(K.mean(input_tensor[...,self.neuron_index]))
+            elif K.image_dim_ordering() =='th':
+                return -(K.mean(input_tensor[:,self.neuron_index,...]))
+            else:
+                raise Exception('image_dim_ordering not understood') 
+class L2(BaseLoss):
+    def __init__(self,neuron_index=None,**kwargs):
+        super(L2, self).__init__(**kwargs)
+        self.neuron_index = neuron_index
+    def loss_from_tensor(self,input_tensor):
+        if self.neuron_index is None:
+            if K.image_dim_ordering() =='tf':
+                return -K.square(K.mean(input_tensor))
+            elif K.image_dim_ordering() =='th':
+                return -K.square(K.mean(input_tensor))
+            else:
+                raise Exception('image_dim_ordering not understood') 
+        else:
+            
+            if K.image_dim_ordering() =='tf':
+                return -K.square(K.mean(input_tensor[...,self.neuron_index]))
+            elif K.image_dim_ordering() =='th':
+                return -K.square(K.mean(input_tensor[:,self.neuron_index,...]))
+            else:
+                raise Exception('image_dim_ordering not understood') 
 
     
 class spatial_variation(BaseLoss):        
-    def __init__(self,layer_identifier=None):
-        self.layer_identifier = layer_identifier
-        return
+    def __init__(self,**kwargs):
+        super(spatial_variation, self).__init__(**kwargs)
+        
     def loss_from_tensor(self,input_tensor):
         if K.image_dim_ordering() =='tf':
             center = input_tensor[...,:-1,:-1,:]
@@ -71,8 +100,7 @@ class spatial_variation(BaseLoss):
 
     
 class tensor_norm(BaseLoss):
-    def __init__(self,layer_identifier=None):
-        self.layer_identifier = layer_identifier
-        return
+    def __init__(self,**kwargs):
+        super(tensor_norm, self).__init__(**kwargs)
     def loss_from_tensor(self,input_tensor):
         return K.sqrt(K.mean(K.square(input_tensor)))
