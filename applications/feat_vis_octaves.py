@@ -19,59 +19,80 @@ fs = os.path.sep
 
 '''Default 
 '''
-default_added_json = (
-[
-  [
-    {
-    "class_name":"Cholesky2D",
-    "config":
-      {
+#default_added_json=[[]]
+default_json = {
+"added_layers":
+    [
+      [
+#        {
+#        "class_name":"RandomRoll2D",
+#        "config":
+#             {
+#             "name":"rollshift1",
+#             
+#             },
+#        "name":"rollshift1"
+#        },
+        {
+        "class_name":"Cholesky2D",
+        "config":
+          {
+            "name":"cholesky1"
+          },
         "name":"cholesky1"
-      },
-    "name":"cholesky1"
-    },
-    {
-    "class_name":"Jitter2D",
-    "config":
-      {
-        "jitter":16,
+        },
+        {
+        "class_name":"Jitter2D",
+        "config":
+          {
+            "jitter":16,
+            "name":"jitter1"
+          },
         "name":"jitter1"
-      },
-    "name":"jitter1"
-    },
-    {
-    "class_name":"RandomResize2D",
-    "config":
-      {
-        "resize_vals":[0.95,0.975,1.0,1.025,1.05],
+        },
+        {
+        "class_name":"RandomResize2D",
+        "config":
+          {
+            "resize_vals":[0.95,0.975,1.0,1.025,1.05],
+            "name":"resize1"
+          },
         "name":"resize1"
-      },
-    "name":"resize1"
-    },
-    {
-    "class_name":"RandomRotate2D",
-    "config":
-      {
-        "rotate_vals":[-5.0,-4.0,-3.0,-2.0,-1.0,0.0,1.0,2.0,3.0,4.0,5.0],
+        },
+        {
+        "class_name":"RandomRotate2D",
+        "config":
+          {
+            "rotate_vals":[-5.0,-4.0,-3.0,-2.0,-1.0,0.0,1.0,2.0,3.0,4.0,5.0],
+            "name":"rotate1"
+          },
         "name":"rotate1"
-      },
-    "name":"rotate1"
-    },
-    {
-    "class_name":"Jitter2D",
-    "config":
-      {
-        "jitter":8,
+        },
+        {
+        "class_name":"Jitter2D",
+        "config":
+          {
+            "jitter":8,
+            "name":"jitter2"
+          },
         "name":"jitter2"
-      },
-    "name":"jitter2"
-    }
-  ]
-])
+        }
+      ]
+    ],
 
-default_obj_json = (
-        
-        )
+"custom_objects":{},
+"initializer":
+    {
+    "class_name":"RandomUniform",
+    "config":{
+                "minval":-0.001,
+                "maxval":0.001
+              }
+    }
+}
+
+
+
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -90,31 +111,25 @@ if __name__ == '__main__':
                         default=0,type=int,
                         help=('Activity of the neuron index in the given layer'
                               ' to optimize'))
-    parser.add_argument('--added_json', action='store',
-                        dest='added_json',
+    parser.add_argument('--config_json', action='store',
+                        dest='config_json',
                         default=None,
                         help=('json configuration for added json.'
                               'If None, uses default configuration'))
     
-    parser.add_argument('--image_size', action='store',
-                        dest='image_size',
+    parser.add_argument('--model_size', action='store',
+                        dest='model_size',
                         default=224,type=int,
-                        help='height and width of the image')
+                        help='height and width of the model')
+    parser.add_argument('--initial_image_size', action='store',
+                        dest='initial_image_size',
+                        default=150,type=int,
+                        help='height and width of the initial image')
     parser.add_argument('--num_iter', action='store',
                         dest='num_iter',
                         default=500,type=int,
-                        help='number of optimization iterations per octave')
-    parser.add_argument('--num_iter', action='store',
-                        dest='num_iter',
-                        default=500,type=int,
-                        help='number of optimization iterations per octave')
-    parser.add_argument('--custom_objects_json', action='store',
-                        dest='custom_objects_json',
-                        default=None,
-                        help=('json file containing dict of custom objects to use.'
-                              'Keys the class_name of the objects. '
-                              'Values are the import strings (i.e. '
-                              'package.module.class_name.'))
+                        help='number of optimization iterations')
+
     args = parser.parse_args()
     
     #set up 
@@ -127,48 +142,55 @@ if __name__ == '__main__':
     else:
         output = args.output if args.output.endswith(fs) else args.output+fs
         os.makedirs(output,exist_ok=True)
-        output = output+'img.png'
-    
+#        output = output+'img.png'
+        
+    config_json = args.config_json
+    if config_json is not None:
+        with open(config_json,'r') as f:
+            config_json = json.load(f)
+    else:
+        config_json = default_json
     
     #Preprocessing
-    image_size =args.image_size
-    img_shape = (1,image_size,image_size,3)
-    init_img = (np.random.uniform(low=-1,high=1,
-                             size=(1,img_shape[1],img_shape[2],3)) 
-                + 124)
-    _,y_len,x_len,ch_len = init_img.shape
+    model_size =args.model_size
+    model_shape = (1,model_size,model_size,3)
     
-    #Non-Model Setup
-    optimizer = keras.optimizers.Adam(lr=0.1)
-    loss_build = kinopt.losses.neuron_activation(neuron_index=args.neuron_index,
-                                       layer_identifier=layer_identifier)
-    #Load Model
-    added_json = args.added_json
-    if added_json is not None:
-        with open(added_json,'r') as f:
-            added_json = json.load(f)
+    if 'initializer' in config_json:
+        initializer = keras.initializers.get(config_json['initializer'])
+        img = kinopt.initializers.build_input(initializer,model_shape,
+                                                   dtype=np.float32)
     else:
-        added_json = default_added_json
+        img = np.random.uniform(low=-1,high=1,
+                                 size=(1,model_shape[1],model_shape[2],3))
     
-    custom_objs = args.custom_objects_json
-    if custom_objs is not None:
-        with open(custom_objs,'r') as f:
-            custom_objs = json.load(f)
+    #Load Model
+    if 'custom_objects' in config_json:
+        custom_objs = config_json['custom_objects']
         kinopt.utils.parse_custom_objs(custom_objs)
     else:
         custom_objs = {}
+        
+    if 'added_layers' in config_json:
+        added_layers = config_json['added_layers']
+    else:
+        added_layers = None
             
-    model = kinopt.models.load_model(args.model,initial_inputs=init_img,
-                                     inserted_layers=added_json,
+    model = kinopt.models.load_model(args.model,initial_inputs=img,
+                                     inserted_layers=added_layers,
                                      custom_objects=custom_objs)
     
     #compile (make loss, make updates)
-
+    loss_build = kinopt.losses.neuron_activation(neuron_index=args.neuron_index,
+                                           layer_identifier=layer_identifier)
     loss = loss_build.compile(model)
+    optimizer = keras.optimizers.Adam(lr=0.05)
     
-    #TODO: Implement RollShift layer and tiled layer
+    
     #Fit/save output
-    out = kinopt.fitting.input_fit(model,loss,optimizer,
-                                   init_img,num_iter=args.num_iter)
-    proc_img = kinopt.utils.visstd(out[0])
-    imageio.imsave(output,proc_img)
+    init_img = img[:,:args.initial_image_size,:args.initial_image_size,:]
+    deprocessor = lambda x : kinopt.utils.visstd(x[0,...,::-1])
+    out = kinopt.fitting.input_fit_octaves(model,loss,optimizer,
+                                   init_img,model_shape,
+                                   num_iter=args.num_iter,
+                                   deprocessor=deprocessor,
+                                   output=output)
