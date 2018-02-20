@@ -29,9 +29,11 @@ class BaseLoss(object):
         elif isinstance(self.layer_identifier,int):
             active_layer = model.get_layer(index=self.layer_identifier)
             layer_output = active_layer.output
-    
+
         elif self.layer_identifier is None:
             layer_output = model.output
+        elif K.is_keras_tensor(self.layer_identifier):
+            layer_output = self.layer_identifier
         else:
             raise ValueError('Could not interpret '
                          'layer_identifier:', self.layer_identifier)

@@ -16,7 +16,7 @@ from scipy.ndimage.interpolation import zoom
 from imageio import imsave
 
 
-def input_fit(model,loss,optimizer,init_img,num_iter=500,verbose=1):
+def input_fit(model,loss,optimizer,init_img,num_iter=500,copy=True,verbose=1):
     
     model_input = model.input
 
@@ -29,7 +29,10 @@ def input_fit(model,loss,optimizer,init_img,num_iter=500,verbose=1):
                          updates=optimizer_updates,
                          name='input_optimizer')
     
-    img = init_img
+    if copy:
+        img = init_img.copy()
+    else:
+        img = init_img
     for i in range(num_iter):
 
         this_loss,this_grad = opt_func([img])
@@ -43,7 +46,7 @@ def input_fit(model,loss,optimizer,init_img,num_iter=500,verbose=1):
 #no need for extra_lr
 def input_fit_octaves(model,loss,optimizer,init_img,
                       model_shape,num_octaves=6,octave_scale=1.4,
-                      num_iter=500,
+                      num_iter=500,copy=True,
                       deprocessor=None,output=None,verbose=1):
     
     model_input = model.input
@@ -58,8 +61,11 @@ def input_fit_octaves(model,loss,optimizer,init_img,
                          name='input_optimizer')
     
     _,model_height,model_width,_ = model_shape
-    img = init_img
     
+    if copy:
+        img = init_img.copy()
+    else:
+        img = init_img
     
     for octave_idx in range(num_octaves):
         
