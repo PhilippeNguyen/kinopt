@@ -105,8 +105,8 @@ if __name__ == '__main__':
     loss_build = kinopt.losses.neuron_activation(neuron_index=args.class_index)
     
     loss = loss_build.compile(adv_model)
-    optimizer = keras.optimizers.Adam(lr=0.05)
-    
+#    optimizer = keras.optimizers.Adam(lr=0.05)
+    optimizer = kinopt.optimizers.FSG(eps=0.007)
     
 
     #adversary generation
@@ -135,18 +135,23 @@ if __name__ == '__main__':
         
 
     num_label_og = 0
-    for top_preds in og_preds:
-        id,label,prob = top_preds[0]
-        if label== label_name:
+    num_label_adv = 0
+    num_label_swapped = 0
+    for og_pred,adv_pred in zip(og_preds,adv_preds):
+        og_id,og_label,og_prob = og_pred[0]
+        if og_label== label_name:
             num_label_og +=1
+        adv_id,adv_label,adv_prob = adv_pred[0]
+        if adv_label== label_name:
+            num_label_adv +=1
+        if og_label!= adv_label:
+            num_label_swapped+=1
+            
     print('number of original images with label "',label_name,
           '" ',num_label_og,'/',len(og_preds))
-
-    num_label_adv = 0
-    for top_preds in adv_preds:
-        id,label,prob = top_preds[0]
-        if label== label_name:
-            num_label_adv +=1
     print('number of adversarial images with label "',label_name,
           '" : ',num_label_adv,'/',len(adv_preds))
+    print('number of images with labels swapped: ',
+          num_label_swapped,'/',len(adv_preds))
+
     

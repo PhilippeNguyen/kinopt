@@ -10,7 +10,8 @@ update from the optimizer update.
 
 
 """
-
+from keras.optimizers import Optimizer
+import keras.backend as K
 
 def get_input_updates(optimizer,loss,model_input):
     '''Extremely hack-y method of pulling out the p (params) value from the 
@@ -32,3 +33,28 @@ def get_input_updates(optimizer,loss,model_input):
             break
     grad = updated_param - model_input
     return grad,updates
+
+class FSG(Optimizer):
+    '''Fast Sign Gradient
+        Doesn't really optimize, but uses the same design as optimizers.
+        Make sure to use num_iter = 1 for when using input_fit
+        
+    '''
+    def __init__(self,eps,**kwargs):
+        super(FSG, self).__init__(**kwargs)
+        with K.name_scope(self.__class__.__name__):
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
+        self.eps = eps
+    def get_updates(self,loss,params):
+        grads = self.get_gradients(loss, params)
+        self.updates = [K.update_add(self.iterations, 1)]
+        self.weights = [self.iterations]
+        
+        for p, g in zip(params, grads):
+            new_p = p +self.eps*K.sign(g)
+            self.updates.append(K.update(p, new_p))
+        return self.updates
+    def get_config(self):
+        config = {'eps':self.eps }
+        base_config = super(FSG, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
