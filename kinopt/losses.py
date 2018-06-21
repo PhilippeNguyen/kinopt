@@ -59,8 +59,8 @@ class BaseLoss(object):
 
     def get_tensor_value(self,input_tensor,
                          batch_idx=None,feature_idx=None):
-        batch_idx_s = slice(batch_idx)
-        feature_idx_s = slice(feature_idx)
+        batch_idx_s = slice(None) if batch_idx is None else batch_idx
+        feature_idx_s = slice(None) if feature_idx is None else feature_idx
         if self.dim_order == 'tf':
             return input_tensor[batch_idx_s,...,feature_idx_s]
         elif self.dim_order == 'th':
