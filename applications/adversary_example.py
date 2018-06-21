@@ -106,7 +106,7 @@ if __name__ == '__main__':
     
     loss = loss_build.compile(adv_model)
 #    optimizer = keras.optimizers.Adam(lr=0.05)
-    optimizer = kinopt.optimizers.FSG(eps=0.007)
+    optimizer = kinopt.optimizers.FGS(eps=0.1)
     
 
     #adversary generation

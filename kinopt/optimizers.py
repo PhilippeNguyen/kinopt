@@ -34,14 +34,14 @@ def get_input_updates(optimizer,loss,model_input):
     grad = updated_param - model_input
     return grad,updates
 
-class FSG(Optimizer):
-    '''Fast Sign Gradient
+class FGS(Optimizer):
+    '''Fast Gradient Sign
         Doesn't really optimize, but uses the same design as optimizers.
         Make sure to use num_iter = 1 for when using input_fit
         
     '''
     def __init__(self,eps,**kwargs):
-        super(FSG, self).__init__(**kwargs)
+        super(FGS, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
         self.eps = eps
@@ -56,5 +56,5 @@ class FSG(Optimizer):
         return self.updates
     def get_config(self):
         config = {'eps':self.eps }
-        base_config = super(FSG, self).get_config()
+        base_config = super(FGS, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
