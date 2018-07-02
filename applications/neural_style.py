@@ -7,7 +7,7 @@ Created on Tue Jun 12 23:59:51 2018
 import argparse
 import kinopt
 import imageio
-from kinopt.preprocessors import preprocess_input,random_like
+from kinopt.preprocessors import preprocess_input,random_like,deprocess_input
 from skimage.transform import resize
 import numpy as np
 import keras
@@ -71,55 +71,54 @@ style_img = np.float32(imageio.imread(args.style_image))
 style_img = resize(style_img,content_img.shape[:2],preserve_range=True)
 style_img = preprocess_input(style_img,mode=args.preprocess_mode)
 
-combo_img = content_img
 
-init_img = np.stack((content_img,
-                     style_img,
-                     combo_img))
-
-added_layers = [[{"class_name":"BatchStopGradient",
-                    "config":
-                      {
-                        "stop_batch_indices":[0,1],
-                        "name":"batchstopgradient1"
-                      },
-                    "name":"batchstopgradient1"
-                    }
-                ]]
+init_img = np.expand_dims(content_img.copy(),axis=0)
+content_img = np.expand_dims(content_img,axis=0)
+style_img = np.expand_dims(style_img,axis=0)
+#added_layers = [[{"class_name":"BatchStopGradient",
+#                    "config":
+#                      {
+#                        "stop_batch_indices":[0,1],
+#                        "name":"batchstopgradient1"
+#                      },
+#                    "name":"batchstopgradient1"
+#                    }
+#                ]]
     
 
 model = kinopt.models.load_model(args.model,initial_inputs=init_img,
-                                 inserted_layers=added_layers,
+#                                 inserted_layers=added_layers,
                                  new_output_layers=args.new_output_layers,
                                  custom_objects={})
 loss = 0
 
 num_content = float(len(args.content_layers))
 for content_layer in args.content_layers:
-    content_loss_build = kinopt.losses.tensor_sse(layer_identifier=content_layer,
-                                            batch_index_1=0,
-                                            batch_index_2=2)
-    content_loss = content_loss_build.compile(model)
+#    content_loss_build = kinopt.losses.tensor_sse(layer_identifier=content_layer,
+#                                            batch_index_1=0,
+#                                            batch_index_2=2)
+    content_loss_build = kinopt.losses.tensor_sse(layer_identifier=content_layer)
+    content_loss = content_loss_build.compile(model,compare_input=content_img)
     loss += (args.content_weight/num_content)*content_loss
 
 num_style = float(len(args.style_layers))
 for style_layer in args.style_layers:
-    style_loss_build = kinopt.losses.style_loss(layer_identifier=style_layer,
-                                        batch_index_style=1,
-                                        batch_index_content=2)
-    style_loss = style_loss_build.compile(model)
+#    style_loss_build = kinopt.losses.style_loss(layer_identifier=style_layer,
+#                                        batch_index_style=1,
+#                                        batch_index_content=2)
+    style_loss_build = kinopt.losses.style_loss(layer_identifier=style_layer)
+    style_loss = style_loss_build.compile(model,compare_input=style_img)
     loss += (args.style_weight/num_style)*style_loss
     
-tv_loss_build = kinopt.losses.spatial_variation(layer_identifier=0,
-                                                batch_index=2)
+tv_loss_build = kinopt.losses.spatial_variation(layer_identifier=0)
 tv_loss = tv_loss_build.compile(model)
 loss += args.tv_weight*tv_loss
 
 
-optimizer = keras.optimizers.Adam(lr=0.1)
+optimizer = keras.optimizers.Adam(lr=0.5)
 
 out = kinopt.fitting.input_fit(model,loss,optimizer,
                                init_img,num_iter=args.num_iter)
-out_img = out[2]
-proc_img = kinopt.utils.visstd_bgr(out_img)
+out_img = out[0]
+proc_img = deprocess_input(out_img)
 imageio.imsave(output,proc_img)
