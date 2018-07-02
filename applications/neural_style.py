@@ -11,6 +11,7 @@ from kinopt.preprocessors import preprocess_input,random_like
 from skimage.transform import resize
 import numpy as np
 import keras
+import keras.backend as K
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--model', action='store', dest='model',
                     required=True,
@@ -46,27 +47,51 @@ parser.add_argument('--output', action='store',
                     dest='output',
                     required=True,
                     help='name of output img')
+parser.add_argument('--new_output_layers', action='store',
+                    dest='new_output_layers',
+                    default=None,nargs='+',
+                    help='Name of new output layers, if needed')
+parser.add_argument('--new_size', action='store',
+                    dest='new_size',
+                    default=None,type=int,
+                    help='resize the longest edge of the image to this size')
 args = parser.parse_args()
 output = args.output if args.output.endswith('.png') else args.output + '.png'
-  
+new_size = args.new_size
 #need to preprocess the content and style images
 content_img = np.float32(imageio.imread(args.content_image))
+if new_size is not None:
+    scale = new_size/max(content_img.shape[:2])
+    new_shape = [int(shape*scale) for shape in content_img.shape[:2]]
+    content_img = resize(content_img,new_shape,preserve_range=True)
 content_img = preprocess_input(content_img,mode=args.preprocess_mode)
+
 
 style_img = np.float32(imageio.imread(args.style_image))
 style_img = resize(style_img,content_img.shape[:2],preserve_range=True)
 style_img = preprocess_input(style_img,mode=args.preprocess_mode)
 
-combo_img = random_like(content_img,mode=args.preprocess_mode)
+combo_img = content_img
 
 init_img = np.stack((content_img,
                      style_img,
                      combo_img))
 
-#init_img = np.expand_dims(init_img[0],axis=0)
-model = keras.models.load_model(args.model)
-#model = kinopt.models.load_model(args.model,initial_inputs=init_img,
-#                                 custom_objects={})
+added_layers = [[{"class_name":"BatchStopGradient",
+                    "config":
+                      {
+                        "stop_batch_indices":[0,1],
+                        "name":"batchstopgradient1"
+                      },
+                    "name":"batchstopgradient1"
+                    }
+                ]]
+    
+
+model = kinopt.models.load_model(args.model,initial_inputs=init_img,
+                                 inserted_layers=added_layers,
+                                 new_output_layers=args.new_output_layers,
+                                 custom_objects={})
 loss = 0
 
 num_content = float(len(args.content_layers))
@@ -86,14 +111,15 @@ for style_layer in args.style_layers:
     loss += (args.style_weight/num_style)*style_loss
     
 tv_loss_build = kinopt.losses.spatial_variation(layer_identifier=0,
-                                                batch_index=0)
+                                                batch_index=2)
 tv_loss = tv_loss_build.compile(model)
 loss += args.tv_weight*tv_loss
+
 
 optimizer = keras.optimizers.Adam(lr=0.1)
 
 out = kinopt.fitting.input_fit(model,loss,optimizer,
                                init_img,num_iter=args.num_iter)
-
-proc_img = kinopt.preprocessors.visstd(out[2])
+out_img = out[2]
+proc_img = kinopt.utils.visstd_bgr(out_img)
 imageio.imsave(output,proc_img)

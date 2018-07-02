@@ -27,3 +27,20 @@ def parse_custom_objs(custom_dict):
             raise Exception('custom objects val must be strings')
         custom_dict[key] = string_import(val)
     return
+
+def parse_layer_identifiers(layer_identifiers):
+    if isinstance(layer_identifiers,list):
+        return [parse_layer_identifiers(layer) for layer in layer_identifiers]
+    elif isinstance(layer_identifiers,(str,int)):
+        try:
+            return int(layer_identifiers)
+        except:
+            return layer_identifiers
+    else:
+        raise ValueError('layer_identifiers must be str or int, or list of str/int')
+
+def as_list(obj):
+    if isinstance(obj,(list,tuple)):
+        return list(obj)
+    else:
+        return [obj]

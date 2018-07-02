@@ -5,17 +5,8 @@ Created on Sun Dec 24 13:17:43 2017
 
 """
 from keras import backend as K
+from .utils import parse_layer_identifiers
 
-def parse_layer_identifiers(layer_identifiers):
-    if isinstance(layer_identifiers,list):
-        return [parse_layer_identifiers(layer) for layer in layer_identifiers]
-    elif isinstance(layer_identifiers,(str,int)):
-        try:
-            return int(layer_identifiers)
-        except:
-            return layer_identifiers
-    else:
-        raise ValueError('layer_identifiers must be str or int, or list of str/int')
 #TODO: Better,more convenient input parameters, use def compile
 class BaseLoss(object):
     def __init__(self,layer_identifier=None,im_dim_order=None):
@@ -111,7 +102,7 @@ class spatial_variation(BaseLoss):
             raise Exception('image_dim_ordering not understood')
             
         return K.mean(K.sqrt(K.square(center-y_shift) 
-                             + K.square(center-x_shift)+ K.epsilon) )
+                             + K.square(center-x_shift)+ K.epsilon()) )
     
 class style_loss(BaseLoss):
     def __init__(self,batch_index_style,batch_index_content,

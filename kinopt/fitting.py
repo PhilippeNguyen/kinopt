@@ -20,7 +20,6 @@ def input_fit(model,loss,optimizer,init_img,num_iter=500,copy=True,verbose=1):
     
     model_input = model.input
 
-
     grad,optimizer_updates = get_input_updates(optimizer,loss,model_input)
     
     

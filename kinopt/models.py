@@ -14,11 +14,14 @@ from keras.engine import topology
 from keras.models import model_from_config
 from keras import backend as K
 from .layers import kinopt_layers
-#TODO: FIXIXI
+from .utils import parse_layer_identifiers,as_list
+
+
 def load_model(filepath,inserted_layers=None,
                custom_objects=None,
                initial_inputs=None,
-               **kwargs):
+               new_output_layers=None
+               ):
     """loads model like keras load_model, updates the input layer,
         as well inserts extra layers after the input
     """
@@ -60,8 +63,10 @@ def load_model(filepath,inserted_layers=None,
             
         model_config = json.loads(model_config.decode('utf-8'))
         
-        update_config(model_config['config'],inserted_layers,
-                      initial_inputs,**kwargs)
+        update_config(model_config['config'],
+                      inserted_layers,
+                      new_output_layers,
+                      initial_inputs)
         model = model_from_config(model_config, custom_objects=custom_objects)
         if 'layer_names' not in f.attrs and 'model_weights' in f:
             f = f['model_weights']
@@ -79,14 +84,16 @@ def check_tensor(x):
     else:
         return False
     
-def update_config(config,added_layers=None,initial_inputs=None):
+def update_config(config,added_layers=None,
+                  new_output_layers=None,initial_inputs=None):
+    remove_layers(config,new_output_layers)    
     input_layers = config['input_layers']
-
+    
     input_names = [input_layer[0] for input_layer in input_layers]
     if added_layers is None:
         added_layers = [[] for _ in input_names]
     
-    #check to make sure initial inputs are of the same fights
+    #check to make sure initial inputs are of the same types
     if initial_inputs:
         is_tensor = check_tensor(initial_inputs[0])
         for init_input in initial_inputs:
@@ -98,25 +105,27 @@ def update_config(config,added_layers=None,initial_inputs=None):
     for input_idx,input_name in enumerate(input_names):
         added_layer_names = [layer['name'] for layer in added_layers[input_idx]]
         og_input_idx = None
+        #find the idx of this input_layer in the config layer list
         for layer_idx,layer in enumerate(layers):
             assert layer['name'] not in added_layer_names, ("Cannot add layers "
                         "with names already in the model :",layer['name'])
                         
-            
+            #Modify the config for this input_layer
             if (layer['name'] == input_name 
                 and initial_inputs[input_idx] is not None):
                 layer_config = layer['config']
-                
                 
                 if check_tensor(initial_inputs[input_idx]):
                     layer_config['input_tensor'] = initial_inputs[input_idx]
                     layer_config['batch_input_shape'] = list(initial_inputs[input_idx].get_shape().as_list())
                 else:
                     layer_config['batch_input_shape'] = list(initial_inputs[input_idx].shape)
+                    
                 og_input_idx = input_idx
                 og_input_name = layer['name'] 
                 
         #this is done after loop in order to not mess with layers list during loop
+        #insert added layers corresponding to this input_layer
         if (added_layers[input_idx] is not None
             and og_input_idx is not None):
             insert_layers(layers,og_input_idx,added_layers[input_idx])
@@ -131,10 +140,75 @@ def update_config(config,added_layers=None,initial_inputs=None):
 
     return
 
+def remove_layers(config,output_layers=None):
+    
+    if output_layers is None:
+        return
+    layers = config['layers']
+    output_layers = as_list(output_layers.copy())
+    output_names = []
+    for layer_id in output_layers:
+        if isinstance(layer_id,str):
+            output_names.append(layer_id)
+        elif isinstance(layer_id,int):
+            output_names.append(config[layer_id]['name'])
+        else:
+            ValueError('output_layer ids must be str or int, or list of str/int')
+            
+    #keep track of parents
+    class Node(object):
+        def __init__(self,name):
+            self.name = name
+            self.parents = {}
 
+    #keep track of nodes
+    output_nodes = {}
+    node_set = {}
+    def build_node(layer_data):
+        name = layer_data['name']
+        if name not in node_set:
+            node_set[name] = Node(name)
+        this_node = node_set[name]
+        if name in output_names:
+            output_nodes[name] = this_node
+        
+        inbound_nodes = layer_data['inbound_nodes']
+        for outer_nodes in inbound_nodes:
+            for node_data in outer_nodes:
+                in_node_name = node_data[0]
+                if in_node_name not in node_set:
+                    node_set[in_node_name] = Node(in_node_name)
+                in_node = node_set[in_node_name]
+                this_node.parents[in_node_name] = in_node
+    
+    for layer_idx,layer_data in enumerate(layers):
+        build_node(layer_data)
 
+    #for each output node, go back up, and add each node to the kept_nodes
+    #then add all kept nodes back to config
+    kept_nodes = set()
+    def traverse_up(given_node):
+        if given_node.name not in kept_nodes:
+            kept_nodes.add(given_node.name)
+        for parent_node in given_node.parents.values():
+            traverse_up(parent_node)
+            
+    for output_name,output_node in output_nodes.items():
+        traverse_up(output_node)
+
+    new_config = []
+    for layer_data in layers:
+        if layer_data['name'] in kept_nodes:
+            new_config.append(layer_data)
+    config['layers'] = new_config
+    
+    #TODO:!!FORMAT ASSUMPTION
+    config['output_layers'] = [[out_name,idx,0] for idx,out_name in enumerate(output_names)]
+    return 
 
 def insert_layers(config,layer_idx,added_layers):
+    '''inserts all added layers sequentially into the config at the layer_idx
+    '''
     for idx,layer_conf in enumerate(added_layers):
         inbound_idx = idx+layer_idx
         if 'inbound_nodes' not in layer_conf:
@@ -145,6 +219,7 @@ def insert_layers(config,layer_idx,added_layers):
     return
 
 def build_inbound_node(input_name):
+    #TODO:!!FORMAT ASSUMPTION
     return [[[input_name,0,0,{}]]]
 
 #TODOTEST/FIX
