@@ -83,10 +83,11 @@ class L2(BaseLoss):
         return -K.square(K.mean(sel_tensor))
     
 class spatial_variation(BaseLoss):        
-    def __init__(self,neuron_index=None,batch_index=None,**kwargs):
+    def __init__(self,neuron_index=None,batch_index=None,power=1.,**kwargs):
         super(spatial_variation, self).__init__(**kwargs)
         self.neuron_index = neuron_index
         self.batch_index = batch_index
+        self.pow = power
         
     def loss_from_tensor(self,input_tensor):
         batch_idx = slice(self.batch_index)
@@ -102,40 +103,42 @@ class spatial_variation(BaseLoss):
         else:
             raise Exception('image_dim_ordering not understood')
             
-        return K.mean(K.sqrt(K.square(center-y_shift) 
-                             + K.square(center-x_shift)+ K.epsilon()) )
-    
-class style_loss(BaseLoss):
-#    def __init__(self,batch_index_style,batch_index_content,
-#                 **kwargs):
-#        super(style_loss, self).__init__(**kwargs)
-#        self.batch_index_style = batch_index_style
-#        self.batch_index_content = batch_index_content
-#    def loss_from_tensor(self,input_tensor):
-#        S = self.gram_matrix(self.get_tensor_value(input_tensor,
-#                           batch_idx=self.batch_index_style))
-#        C = self.gram_matrix(self.get_tensor_value(input_tensor,
-#                           batch_idx=self.batch_index_content))
-#        
-#        cols,rows,nch = C.shape.as_list()
-#        size = cols*rows
-#        return K.sum(K.square(S - C)) / (4. * (nch ** 2) * (size ** 2))
-    def __init__(self,
-                 **kwargs):
-        super(style_loss, self).__init__(**kwargs)
+        return K.sum(K.pow(K.square(center-y_shift) 
+                             + K.square(center-x_shift),self.pow ))
+
+
+class ComparativeLoss(BaseLoss):
+    def __init__(self,**kwargs):
+        super(ComparativeLoss, self).__init__(**kwargs)
         
-    def compile(self,model,compare_input):
+    def compile_with_external(self,model,compare_input):
         layer_output = self.get_layer_output(model)
         compare_output = self.get_layer_output(model)
         sub_func = K.function([model.input],[compare_output])
         compare_var = K.variable(sub_func([compare_input])[0])
         return self.loss_from_tensor(layer_output,compare_var)
     
+    def compile_with_batches(self,model,batch_idx_1,batch_idx_2):
+        layer_output = self.get_layer_output(model)
+        return self.loss_from_tensor(layer_output[batch_idx_1],
+                                     layer_output[batch_idx_2])
+    
+class style_loss(ComparativeLoss):
+
+    def __init__(self,
+                 **kwargs):
+        super(style_loss, self).__init__(**kwargs)
+    
     def loss_from_tensor(self,input_tensor,compare_tensor):
-        S = self.gram_matrix(input_tensor[0])
-        C = self.gram_matrix(compare_tensor[0])
+        if K.ndim(input_tensor) == 4:
+            input_tensor = input_tensor[0]
+        if K.ndim(compare_tensor) == 4:
+            compare_tensor = compare_tensor[0]
+            
+        S = self.gram_matrix(input_tensor)
+        C = self.gram_matrix(compare_tensor)
         
-        cols,rows,nch = input_tensor[0].shape.as_list()
+        cols,rows,nch = input_tensor.shape.as_list()
         size = cols*rows
         return K.sum(K.square(S - C)) / (4. * (nch ** 2) * (size ** 2))
     def gram_matrix(self,x):
@@ -150,37 +153,15 @@ class style_loss(BaseLoss):
         gram = K.dot(features, K.transpose(features))
         return gram
     
-class tensor_sse(BaseLoss):
-#    def __init__(self,batch_index_1=None,batch_index_2=None,
-#                 feature_index_1=None,feature_index_2=None,
-#                 **kwargs):
-#        super(tensor_sse, self).__init__(**kwargs)
-#        self.batch_index_1 = batch_index_1
-#        self.batch_index_2 = batch_index_2
-#        self.feature_index_1 = feature_index_1
-#        self.feature_index_2 = feature_index_2
-#        
-#    def loss_from_tensor(self,input_tensor):
-#        val_1 = self.get_tensor_value(input_tensor,
-#                   batch_idx=self.batch_index_1,
-#                   feature_idx=self.feature_index_1)
-#        val_2 = self.get_tensor_value(input_tensor,
-#           batch_idx=self.batch_index_2,
-#           feature_idx=self.feature_index_2)
-#        return K.sum(K.square(val_1 - val_2))
+class tensor_sse(ComparativeLoss):
+
     def __init__(self,
                  **kwargs):
         super(tensor_sse, self).__init__(**kwargs)
-        
-    def compile(self,model,compare_input):
-        layer_output = self.get_layer_output(model)
-        compare_output = self.get_layer_output(model)
-        sub_func = K.function([model.input],[compare_output])
-        compare_var = K.variable(sub_func([compare_input])[0])
-        return self.loss_from_tensor(layer_output,compare_var)
     
     def loss_from_tensor(self,input_tensor,compare_var):
         return K.sum(K.square(input_tensor - compare_var))
+    
 class tensor_norm(BaseLoss):
     def __init__(self,**kwargs):
         super(tensor_norm, self).__init__(**kwargs)
