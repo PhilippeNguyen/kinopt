@@ -55,9 +55,11 @@ parser.add_argument('--new_size', action='store',
                     dest='new_size',
                     default=None,type=int,
                     help='resize the longest edge of the image to this size')
+
 args = parser.parse_args()
 output = args.output if args.output.endswith('.png') else args.output + '.png'
 new_size = args.new_size
+
 #need to preprocess the content and style images
 content_img = np.float32(imageio.imread(args.content_image))
 if new_size is not None:
@@ -85,13 +87,13 @@ loss = 0
 num_content = float(len(args.content_layers))
 for content_layer in args.content_layers:
     content_loss_build = kinopt.losses.tensor_sse(layer_identifier=content_layer)
-    content_loss = content_loss_build.compile_with_external(model,compare_input=content_img)
+    content_loss = content_loss_build.compile_external_input(model,compare_input=content_img)
     loss += (args.content_weight/num_content)*content_loss
 
 num_style = float(len(args.style_layers))
 for style_layer in args.style_layers:
     style_loss_build = kinopt.losses.style_loss(layer_identifier=style_layer)
-    style_loss = style_loss_build.compile_with_external(model,compare_input=style_img)
+    style_loss = style_loss_build.compile_external_input(model,compare_input=style_img)
     loss += (args.style_weight/num_style)*style_loss
     
 tv_loss_build = kinopt.losses.spatial_variation(layer_identifier=0,power=1.00)

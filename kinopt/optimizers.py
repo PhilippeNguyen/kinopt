@@ -21,7 +21,7 @@ def get_input_updates(optimizer,loss,model_input):
         corresponding to the param update, the param update will be done outside
         of the usual graph computation.
     '''
-    def fake_assign(new_val):
+    def fake_assign(new_val,name=None):
         return new_val
     setattr(model_input,'assign',fake_assign)
     updates = optimizer.get_updates(loss=[loss],

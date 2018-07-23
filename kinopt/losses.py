@@ -8,6 +8,24 @@ import keras
 from keras import backend as K
 from .utils import parse_layer_identifiers
 
+def get_layer_output(model,layer_identifier):
+    if isinstance(layer_identifier,str):
+        active_layer = model.get_layer(layer_identifier)
+        layer_output = active_layer.output
+
+    elif isinstance(layer_identifier,int):
+        active_layer = model.get_layer(index=layer_identifier)
+        layer_output = active_layer.output
+
+    elif layer_identifier is None:
+        layer_output = model.output
+    elif K.is_keras_tensor(layer_identifier):
+        layer_output = layer_identifier
+    else:
+        raise ValueError('Could not interpret '
+                     'layer_identifier:', layer_identifier)
+    return layer_output
+
 #TODO: Better,more convenient input parameters, use def compile
 class BaseLoss(object):
     def __init__(self,layer_identifier=None,im_dim_order=None):
@@ -27,23 +45,7 @@ class BaseLoss(object):
         raise Exception('Not Implemented')
         
     def get_layer_output(self,model):
-              
-        if isinstance(self.layer_identifier,str):
-            active_layer = model.get_layer(self.layer_identifier)
-            layer_output = active_layer.output
-    
-        elif isinstance(self.layer_identifier,int):
-            active_layer = model.get_layer(index=self.layer_identifier)
-            layer_output = active_layer.output
-
-        elif self.layer_identifier is None:
-            layer_output = model.output
-        elif K.is_keras_tensor(self.layer_identifier):
-            layer_output = self.layer_identifier
-        else:
-            raise ValueError('Could not interpret '
-                         'layer_identifier:', self.layer_identifier)
-        return layer_output
+        return get_layer_output(model,self.layer_identifier)
     
     def compile(self,model):
         layer_output = self.get_layer_output(model)
@@ -111,11 +113,24 @@ class ComparativeLoss(BaseLoss):
     def __init__(self,**kwargs):
         super(ComparativeLoss, self).__init__(**kwargs)
         
-    def compile_with_external(self,model,compare_input):
+    def compile_external_input(self,model,compare_input):
         layer_output = self.get_layer_output(model)
         compare_output = self.get_layer_output(model)
         sub_func = K.function([model.input],[compare_output])
+#        if K.is_placeholder(compare_input):
+#            compare_var = sub_func([compare_input])[0]
+#        else:
+#            compare_var = K.variable(sub_func([compare_input])[0])
         compare_var = K.variable(sub_func([compare_input])[0])
+        
+        return self.loss_from_tensor(layer_output,compare_var)
+    
+    def compile_external_tensor(self,model,compare_tensor):
+        layer_output = self.get_layer_output(model)
+        if K.is_placeholder(compare_tensor):
+            compare_var = compare_tensor
+        else:
+            compare_var = K.variable(compare_tensor)
         return self.loss_from_tensor(layer_output,compare_var)
     
     def compile_with_batches(self,model,batch_idx_1,batch_idx_2):
@@ -141,6 +156,7 @@ class style_loss(ComparativeLoss):
         cols,rows,nch = input_tensor.shape.as_list()
         size = cols*rows
         return K.sum(K.square(S - C)) / (4. * (nch ** 2) * (size ** 2))
+    
     def gram_matrix(self,x):
         '''see 
     https://github.com/keras-team/keras/blob/master/examples/neural_style_transfer.py

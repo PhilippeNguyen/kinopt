@@ -10,9 +10,10 @@ import json
 import h5py
 import keras
 from keras import backend as K
-from keras.engine import topology
+from keras.engine import saving
 from keras.models import model_from_config
 from keras import backend as K
+from keras.engine.base_layer import _to_snake_case
 from .layers import kinopt_layers
 from .utils import parse_layer_identifiers,as_list
 
@@ -72,7 +73,7 @@ def load_model(filepath,inserted_layers=None,
             f = f['model_weights']
 
 
-        topology.load_weights_from_hdf5_group_by_name(f,model.layers)
+        saving.load_weights_from_hdf5_group_by_name(f,model.layers)
         return model
 
 
@@ -92,6 +93,7 @@ def update_config(config,added_layers=None,
     input_names = [input_layer[0] for input_layer in input_layers]
     if added_layers is None:
         added_layers = [[] for _ in input_names]
+    add_names_to_layer_config(added_layers)
     
     #check to make sure initial inputs are of the same types
     if initial_inputs:
@@ -206,6 +208,16 @@ def remove_layers(config,output_layers=None):
     config['output_layers'] = [[out_name,idx,0] for idx,out_name in enumerate(output_names)]
     return 
 
+def add_names_to_layer_config(added_layers):
+    for input_layers in added_layers:
+        for idx,layer_conf in enumerate(input_layers):
+            if 'name' not in layer_conf:
+                prefix = layer_conf['class_name']
+                layer_conf['name'] = _to_snake_case(prefix) + '_' + str(K.get_uid(prefix))
+                if 'config' not in layer_conf:
+                    layer_conf['config']  = {}
+                layer_conf['config']['name'] = layer_conf['name']
+            
 def insert_layers(config,layer_idx,added_layers):
     '''inserts all added layers sequentially into the config at the layer_idx
     '''
