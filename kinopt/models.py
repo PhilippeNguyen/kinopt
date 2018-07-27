@@ -213,7 +213,7 @@ def add_names_to_layer_config(added_layers):
         for idx,layer_conf in enumerate(input_layers):
             if 'name' not in layer_conf:
                 prefix = layer_conf['class_name']
-                layer_conf['name'] = _to_snake_case(prefix) + '_' + str(K.get_uid(prefix))
+                layer_conf['name'] = make_layer_name(prefix)
                 if 'config' not in layer_conf:
                     layer_conf['config']  = {}
                 layer_conf['config']['name'] = layer_conf['name']
@@ -229,6 +229,9 @@ def insert_layers(config,layer_idx,added_layers):
         config.insert(inbound_idx+1,layer_conf)
 
     return
+
+def make_layer_name(prefix):
+    return _to_snake_case(prefix) + '_' + str(K.get_uid(prefix))
 
 def build_inbound_node(input_name):
     #TODO:!!FORMAT ASSUMPTION
