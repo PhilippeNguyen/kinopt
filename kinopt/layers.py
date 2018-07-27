@@ -6,10 +6,9 @@ Created on Mon Jan 15 20:53:48 2018
 """
 
 import tensorflow as tf
-import keras
 import keras.backend as K
 from keras.layers import Layer
-from .utils import as_list
+from .utils.generic_utils import as_list
 #Layers mostly directly using tensorflow's image tools
 
         

@@ -6,6 +6,7 @@ Created on Sun Dec 24 13:17:15 2017
 """
 import numpy as np
 from importlib import import_module
+
 def visstd(img,s=0.1):
     img = (img-img.mean())/max(img.std(), 1e-4)*s + 0.5
     return np.uint8(np.clip(img, 0, 1)*255)

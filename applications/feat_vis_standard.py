@@ -140,7 +140,6 @@ if __name__ == '__main__':
     
     if 'initializer' in config_json:
         initializer = keras.initializers.get(config_json['initializer'])
-#        init_img = initializer(img_shape,np.float32)
         init_img = kinopt.initializers.build_input(initializer,img_shape,
                                                    dtype=np.float32)
     else:

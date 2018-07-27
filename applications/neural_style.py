@@ -12,6 +12,9 @@ from skimage.transform import resize
 import numpy as np
 import keras
 import keras.backend as K
+from kinopt.utils.tensor_utils import compare_external_input
+
+
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--model', action='store', dest='model',
                     required=True,
@@ -86,18 +89,19 @@ loss = 0
 
 num_content = float(len(args.content_layers))
 for content_layer in args.content_layers:
-    content_loss_build = kinopt.losses.tensor_sse(layer_identifier=content_layer)
-    content_loss = content_loss_build.compile_external_input(model,compare_input=content_img)
+    fit_tensor,compare_tensor = compare_external_input(model,compare_input=content_img,
+                                             layer_identifier=content_layer)
+    content_loss = kinopt.losses.tensor_sse(fit_tensor,compare_tensor)
     loss += (args.content_weight/num_content)*content_loss
 
 num_style = float(len(args.style_layers))
 for style_layer in args.style_layers:
-    style_loss_build = kinopt.losses.style_loss(layer_identifier=style_layer)
-    style_loss = style_loss_build.compile_external_input(model,compare_input=style_img)
+    fit_tensor,compare_tensor = compare_external_input(model,compare_input=style_img,
+                                           layer_identifier=style_layer)
+    style_loss = kinopt.losses.style_loss(fit_tensor,compare_tensor)
     loss += (args.style_weight/num_style)*style_loss
     
-tv_loss_build = kinopt.losses.spatial_variation(layer_identifier=0,power=1.00)
-tv_loss = tv_loss_build.compile(model)
+tv_loss = kinopt.losses.spatial_variation(model.input,power=1.00)
 loss += args.tv_weight*tv_loss
 
 
