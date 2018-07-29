@@ -7,7 +7,7 @@ Created on Tue Jun 12 23:59:51 2018
 import argparse
 import kinopt
 import imageio
-from kinopt.preprocessors import preprocess_input,random_like,deprocess_input
+from kinopt.preprocessors import preprocess_input,deprocess_input
 from skimage.transform import resize
 import numpy as np
 import keras

@@ -36,7 +36,10 @@ def get_tensor_value(input_tensor,
         return input_tensor[batch_idx_s,feature_idx_s,...,]
     else:
         raise Exception('Unknown K.image_dim_ordering')
-    
+
+'''The compare functions are for obtaining tensors that are usable 
+    for loss functions which compare two tensors/variables.
+'''
 def compare_external_input(model,compare_input,layer_identifier):
     layer_output = get_layer_output(model,layer_identifier)
     sub_func = K.function([model.input],[layer_output])

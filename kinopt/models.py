@@ -14,7 +14,7 @@ from keras.engine import saving
 from keras.models import model_from_config
 from keras import backend as K
 from keras.engine.base_layer import _to_snake_case
-from .layers import kinopt_layers
+from .layers.base_layers import base_layers_dict
 from .utils import parse_layer_identifiers,as_list
 
 
@@ -33,7 +33,7 @@ def load_model(filepath,inserted_layers=None,
         initial_inputs = [initial_inputs]
     if not custom_objects:
         custom_objects = {}
-    custom_objects = {**kinopt_layers,**custom_objects}
+    custom_objects = {**base_layers_dict,**custom_objects}
     def convert_custom_objects(obj):
         """Handles custom object lookup.
         # Arguments
