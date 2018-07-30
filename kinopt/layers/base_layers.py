@@ -47,7 +47,7 @@ class LogisticTransform(Layer):
     def get_config(self):
         return super(LogisticTransform, self).get_config()
     
-def ImagenetPreprocessorTransform(Layer):
+class ImagenetPreprocessorTransform(Layer):
     def __init__(self,mode=None,data_format=None,**kwargs):
         super(ImagenetPreprocessorTransform, self).__init__(**kwargs)
         self.mode = mode
