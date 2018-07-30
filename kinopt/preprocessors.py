@@ -68,9 +68,6 @@ def random_imagenet(shape,mode='caffe'):
     return np.clip(output_img*255.,0,255)
     
     
-    
-
-
 def deprocess_input(x,mode='caffe'):
 
     if mode == 'tf':
@@ -95,3 +92,4 @@ def deprocess_input(x,mode='caffe'):
             x = x[:, :, ::-1]
         x = np.clip(x, 0, 255).astype('uint8')
     return x
+
