@@ -6,6 +6,7 @@
 import tensorflow as tf
 import keras.backend as K
 from keras.layers import Layer
+import numpy as np
 
 
 class Jitter2D(Layer):
@@ -90,50 +91,85 @@ class RandomRotate2D(Layer):
         base_config = super(RandomRotate2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
     
-        
-class Cholesky2D(Layer):
-    def __init__(self,axis=3,**kwargs):
-        super(Cholesky2D, self).__init__(**kwargs)
-        self.axis=axis
+#No Longer Tested
+#class Cholesky2D(Layer):
+#    def __init__(self,axis=3,**kwargs):
+#        super(Cholesky2D, self).__init__(**kwargs)
+#        self.axis=axis
+#        
+#    def call(self,x):
+#        x_shape = x.get_shape()
+#        ndim= len(x_shape.as_list())
+#        cov = self.channel_cov(x)
+#        chol = tf.linalg.cholesky(cov)
+#        inv_chol = tf.linalg.inv(chol)
+#        x = self.rollaxes(x,self.axis,0,ndim)
+#        x = tf.tensordot(inv_chol,x,axes=1)
+#        x = self.rollaxes(x,0,self.axis,ndim)
+#
+#        x.set_shape(x_shape)
+#        return x
+#    
+#    
+#    def channel_cov(self,x):
+#        '''computes covariance along the given axis
+#        '''
+#        x_shape = x.get_shape().as_list()
+#        ndim= len(x_shape)
+#        x = self.rollaxes(x,self.axis,ndim-1,ndim)
+#        x_flat = tf.reshape(x,[-1,x_shape[-1]])
+#        x_mean = tf.expand_dims(tf.reduce_mean(x_flat,axis=0),axis=0)
+#        X = x_flat - x_mean
+#        len_x = X.get_shape().as_list()[0]
+#        X_t = tf.transpose(X)
+#        return tf.tensordot(tf.conj(X_t),X,axes=1)/(len_x-1)
+#    
+#    def rollaxes(self,x,start_pos,end_pos,ndim=None):
+#        if not ndim:
+#            ndim= len(x.get_shape().as_list())
+#        roll_indices = list(range(ndim))
+#        tmp = roll_indices.pop(start_pos)
+#        roll_indices.insert(end_pos,tmp)
+#        return tf.transpose(x,roll_indices)
+#        
+#    def get_config(self):
+#        config = {'axis':self.axis}
+#        base_config = super(Cholesky2D, self).get_config()
+#        return dict(list(base_config.items()) + list(config.items()))
+
+class ChannelDecorrelate(Layer):
+    def __init__(self,whitening_matrix=None,**kwargs):
+        super(ChannelDecorrelate, self).__init__(**kwargs)
+        if whitening_matrix is None:
+            whitening_matrix = np.array(
+                                [[ 0.64636492,  0.,          0.        ],
+                                 [-0.74520612,  0.67786914,  0.        ],
+                                 [ 0.16395189, -0.5827935,   0.2863121 ]],
+                                dtype=np.float32)
+                                        
+            self.whitening_matrix = whitening_matrix
+        elif type(whitening_matrix) is np.ndarray:
+            self.whitening_matrix = np.float32(whitening_matrix)
+        else:
+            #TODO: Check if tensorflow tensor
+            raise Exception('whitening_matrix must be a numpy array')
+
         
     def call(self,x):
         x_shape = x.get_shape()
-        ndim= len(x_shape.as_list())
-        cov = self.channel_cov(x)
-        chol = tf.linalg.cholesky(cov)
-        inv_chol = tf.linalg.inv(chol)
-        x = self.rollaxes(x,self.axis,0,ndim)
-        x = tf.tensordot(inv_chol,x,axes=1)
-        x = self.rollaxes(x,0,self.axis,ndim)
-
+        
+        if K.image_data_format() == 'channels_last':
+            x = tf.tensordot(x,self.whitening_matrix,axes=[[3],[0]])
+        elif K.image_data_format() == 'channels_first':
+            x = tf.tensordot(self.whitening_matrix,x,axes=[[1],[0]])
+        else:
+            raise ValueError('unknown K image_data_format')
         x.set_shape(x_shape)
         return x
     
-    
-    def channel_cov(self,x):
-        '''computes covariance along the given axis
-        '''
-        x_shape = x.get_shape().as_list()
-        ndim= len(x_shape)
-        x = self.rollaxes(x,self.axis,ndim-1,ndim)
-        x_flat = tf.reshape(x,[-1,x_shape[-1]])
-        x_mean = tf.expand_dims(tf.reduce_mean(x_flat,axis=0),axis=0)
-        X = x_flat - x_mean
-        len_x = X.get_shape().as_list()[0]
-        X_t = tf.transpose(X)
-        return tf.tensordot(tf.conj(X_t),X,axes=1)/(len_x-1)
-    
-    def rollaxes(self,x,start_pos,end_pos,ndim=None):
-        if not ndim:
-            ndim= len(x.get_shape().as_list())
-        roll_indices = list(range(ndim))
-        tmp = roll_indices.pop(start_pos)
-        roll_indices.insert(end_pos,tmp)
-        return tf.transpose(x,roll_indices)
-        
     def get_config(self):
-        config = {'axis':self.axis}
-        base_config = super(Cholesky2D, self).get_config()
+        config = {'whitening_matrix':self.whitening_matrix}
+        base_config = super(ChannelDecorrelate, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 class RandomRoll2D(Layer):

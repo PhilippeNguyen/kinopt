@@ -16,63 +16,65 @@ import json
 import os
 from kinopt.layers.tf_layers import tf_layers_dict
 fs = os.path.sep
-
+K.set_learning_phase(False)
 '''Default 
 '''
-default_json = {
-"added_layers":
-    [
-      [
-        {
-        "class_name":"Cholesky2D",
-        "config":
-          {
-            "name":"cholesky1"
-          },
-        "name":"cholesky1"
-        },
-        {
-        "class_name":"Jitter2D",
-        "config":
-          {
-            "jitter":16,
-            "name":"jitter1"
-          },
-        "name":"jitter1"
-        },
-        {
-        "class_name":"RandomResize2D",
-        "config":
-          {
-            "resize_vals":[0.95,0.975,1.0,1.025,1.05],
-            "name":"resize1"
-          },
-        "name":"resize1"
-        },
-        {
-        "class_name":"RandomRotate2D",
-        "config":
-          {
-            "rotate_vals":[-5.0,-4.0,-3.0,-2.0,-1.0,0.0,1.0,2.0,3.0,4.0,5.0],
-            "name":"rotate1"
-          },
-        "name":"rotate1"
-        },
-        {
-        "class_name":"Jitter2D",
-        "config":
-          {
-            "jitter":8,
-            "name":"jitter2"
-          },
-        "name":"jitter2"
-        }
-      ]
-    ],
-
-"custom_objects":{},
-}
+def build_default_json(preprocess_mode):
+    default_json = {
+    "added_layers":
+        [
+          [
+#           {
+#            "class_name":"ChannelDecorrelate",
+#            },
+           {
+            "class_name":"LogisticTransform",
+            "config":{'scale':255.,
+                      'name':'png_layer'},
+              'name':'png_layer'
+            },
+           {
+            "class_name":"ImagenetPreprocessorTransform",
+            "config":{'mode':preprocess_mode}
+            },
+            {
+            "class_name":"RandomRoll2D",
+            },
+            {
+            "class_name":"Jitter2D",
+            "config":
+              {
+                "jitter":16,
+              },
+            },
+            {
+            "class_name":"RandomResize2D",
+            "config":
+              {
+                "resize_vals":[0.95,0.975,1.0,1.025,1.05],
+              },
+            },
+            {
+            "class_name":"RandomRotate2D",
+            "config":
+              {
+                "rotate_vals":[-5.0,-4.0,-3.0,-2.0,-1.0,0.0,1.0,2.0,3.0,4.0,5.0],
+              },
+            },
+            {
+            "class_name":"Jitter2D",
+            "config":
+              {
+                "jitter":8,
+              },
+            }
+          ]
+        ],
     
+    "custom_objects":{},
+    }
+    return default_json
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--model', action='store', dest='model',
@@ -102,7 +104,7 @@ if __name__ == '__main__':
                         help='height and width of the image')
     parser.add_argument('--num_iter', action='store',
                         dest='num_iter',
-                        default=2000,type=int,
+                        default=512,type=int,
                         help='number of optimization iterations')
     parser.add_argument('--preprocess_mode', action='store',
                         dest='preprocess_mode',default='caffe',
@@ -127,15 +129,13 @@ if __name__ == '__main__':
         with open(config_json,'r') as f:
             config_json = json.load(f)
     else:
-        config_json = default_json
+        config_json = build_default_json(args.preprocess_mode)
     
     #Preprocessing
     image_size =args.image_size
     img_shape = (1,image_size,image_size,3)
     
-    init_img = kinopt.preprocessors.random_imagenet(img_shape)
-    init_img = kinopt.preprocessors.preprocess_input(init_img,mode=args.preprocess_mode)
-    init_img /=3.
+    init_img = np.random.randn(*img_shape)
     #Load Model
     custom_objs = tf_layers_dict
     if 'custom_objects' in config_json:      
@@ -150,7 +150,7 @@ if __name__ == '__main__':
     model = kinopt.models.load_model(args.model,initial_inputs=init_img,
                                      inserted_layers=added_layers,
                                      custom_objects=custom_objs)
-    
+    png_func = K.function([model.input],[kinopt.utils.get_layer_output(model,'png_layer')])
     #compile (make loss, make updates)
     fit_tensor = kinopt.utils.get_layer_output(model,layer_identifier)
     fit_tensor = kinopt.utils.get_tensor_value(fit_tensor,
@@ -162,6 +162,5 @@ if __name__ == '__main__':
     #Fit/save output
     out = kinopt.fitting.input_fit(model,loss,optimizer,
                                    init_img,num_iter=args.num_iter)
-
-    proc_img = kinopt.preprocessors.deprocess_input(out[0],mode=args.preprocess_mode)
-    imageio.imsave(output,proc_img)
+    proc_img = png_func([out])[0]
+    imageio.imsave(output,proc_img[0])
