@@ -171,6 +171,182 @@ class ChannelDecorrelate(Layer):
         config = {'whitening_matrix':self.whitening_matrix}
         base_config = super(ChannelDecorrelate, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+    
+
+#Fourier layers require input shape (x,y) being known, so batch_input_shape
+#must be given. kinopt.models.load_model forces this.
+    
+class FourierScaling(Layer):
+    
+    def __init__(self,x_len=None,**kwargs):
+        super(FourierScaling, self).__init__(**kwargs)
+        self.x_len = x_len
+        
+    
+    def compute_energy(self,x,y_len_n,x_len_n,n_ch):
+        '''Actually computes the sqrt of the energy
+        '''
+        x_comp = tf.complex(x[...,0],x[...,1])
+        x_e = tf.square(tf.abs(x_comp))
+        xy_n = y_len_n*x_len_n*np.sqrt(n_ch)
+        if K.image_data_format() == 'channels_last': 
+            if x_len_n % 2:  
+                return tf.sqrt((tf.reduce_sum(x_e[...,0,:])
+                        +2*tf.reduce_sum(x_e[...,1:,:]))/xy_n)
+            else:
+                return tf.sqrt((tf.reduce_sum(x_e[...,0,:])
+                        +2*tf.reduce_sum(x_e[...,1:-1,:])
+                        +tf.reduce_sum(x_e[...,-1,:]))/xy_n)
+                
+        elif K.image_data_format() == 'channels_first': 
+            if x_len_n % 2:  
+                return tf.sqrt((tf.reduce_sum(x_e[...,0])
+                        +2*tf.reduce_sum(x_e[...,1:]))/xy_n)
+            else:
+                return tf.sqrt((tf.reduce_sum(x_e[...,0])
+                        +2*tf.reduce_sum(x_e[...,1:-1])
+                        +tf.reduce_sum(x_e[...,-1]))/xy_n)
+    def call(self,x):
+        x_shape = x.get_shape().as_list()
+        assert x_shape[-1] == 2, "For FourierScaling, input should have last dim with len 2"
+        if K.image_data_format() == 'channels_last': 
+            nb,y_len,x_len,nch,_ = x_shape
+        elif K.image_data_format() == 'channels_first': 
+            nb,nch,y_len,x_len,_ = x_shape
+            
+        y_mesh,x_mesh =np.meshgrid(np.arange(y_len),np.arange(x_len))
+        
+        if self.x_len is None:
+            x_len_n = ((x_len-1)*2)
+        else:
+            x_len_n = self.x_len
+            
+        y_mesh_f = y_mesh/(y_len)
+        x_mesh_f = x_mesh/(x_len_n)
+        
+        freq_matrix = np.sqrt(np.square(y_mesh_f) + np.square(x_mesh_f))
+        
+        min_val = np.min(freq_matrix[freq_matrix>0])
+        freq_matrix = np.transpose(np.maximum(freq_matrix,min_val))
+        freq_matrix = freq_matrix[np.newaxis,:,:,np.newaxis,np.newaxis]
+        
+        prev_e = self.compute_energy(x,y_len,x_len_n,nch)
+        norm_x = x * K.variable(1./(freq_matrix),dtype=K.floatx())
+        
+        new_e = self.compute_energy(norm_x,y_len,x_len_n,nch)
+        norm_x = norm_x*prev_e/new_e
+        
+        norm_x.set_shape(x_shape)
+        return norm_x
+    
+    def get_config(self):
+        config = {'x_len':self.x_len}
+        base_config = super(FourierScaling, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+###Not used since switched FourierScaling and irfft2d, kept for posterity.
+#def tf_ifftshift(x,axes):
+#    if isinstance(axes, integer_types):
+#        axes = (axes,)
+#    tmp = tf.convert_to_tensor(x)
+#    y = tmp
+#    for k in axes:
+#        axes_shape = tf.shape(tmp)[k]
+#        mid = axes_shape-(axes_shape+1)//2
+#        mylist = tf.concat((tf.range(mid, axes_shape), tf.range(mid)),axis=0)
+#        y = tf.gather(y, mylist,axis=k)
+#    return y
+
+class IRFFT2(Layer):
+    def __init__(self,norm=False,**kwargs):
+        super(IRFFT2, self).__init__(**kwargs)
+        self.norm = norm
+        
+    def call(self,x):
+        '''Expects 5-dim input: (batch,y,x,nch,complex components)
+            TODO: Handle batch_size of more than 1 (currently, the norm factor will be off)
+        '''
+        x_shape = x.get_shape().as_list()
+        assert x_shape[-1] == 2, "For IRFFT2, input should have last dim with len 2"
+        real = x[...,0]
+        imag = x[...,1]
+        comp = tf.complex(real,imag)
+        comp.set_shape(x_shape[:-1])
+        
+        if K.image_data_format() == 'channels_last':
+            comp = tf.transpose(comp,[0,3,1,2])
+            
+        irfft = (tf.spectral.irfft2d(comp))
+        i_shape= irfft.get_shape().as_list()
+        
+        if K.image_data_format() == 'channels_last':
+            irfft = tf.transpose(irfft,[0,2,3,1])
+            
+        if self.norm:
+            norm = np.multiply(*i_shape[-2:])*(np.sqrt(i_shape[1]))
+            return irfft *np.sqrt(norm)
+        else:
+            return irfft
+    
+    def compute_output_shape(self,input_shape):
+        if K.image_data_format() == 'channels_last': 
+            nb,y_len,x_len,nch,_ = input_shape
+            new_x_len = (x_len-1)*2
+            return (nb,y_len,new_x_len,nch)
+        elif K.image_data_format() == 'channels_first': 
+            nb,nch,y_len,x_len,_ = input_shape
+            new_x_len = (x_len-1)*2
+            return (nb,nch,y_len,new_x_len)
+    def get_config(self):
+        return super(IRFFT2, self).get_config()
+    
+class RFFT2(Layer):
+    def __init__(self,norm=False,**kwargs):
+        super(RFFT2, self).__init__(**kwargs)
+        self.norm = norm
+    def call(self,x):
+        '''Expects 4-dim input
+            TODO: Handle batch_size of more than 1 (currently, the norm factor will be off)
+        '''
+        x_shape = x.get_shape().as_list()
+        
+        if K.image_data_format() == 'channels_last':
+            x = tf.transpose(x,[0,3,1,2])
+            
+        rfft = (tf.spectral.rfft2d(x))
+#        r_shape = rfft.get_shape().as_list()
+        
+        if K.image_data_format() == 'channels_last':
+            rfft = tf.transpose(rfft,[0,2,3,1])
+            
+        real = tf.real(rfft)
+        imag = tf.imag(rfft)
+        new_x = tf.stack((real,imag),axis=-1)
+        new_x.set_shape(self.compute_output_shape(x_shape))
+        if self.norm:
+            if K.image_data_format() == 'channels_last':
+                norm = np.multiply(*x_shape[1:3])*np.sqrt(x_shape[-1])
+            elif K.image_data_format() == 'channels_first':
+                norm = np.multiply(*x_shape[2:])*np.sqrt(x_shape[1])
+            return new_x / np.sqrt(norm)
+        else:
+            return new_x
+    
+    def compute_output_shape(self,input_shape):
+        if K.image_data_format() == 'channels_last': 
+            nb,y_len,x_len,nch = input_shape
+            new_x_len = (x_len//2)+1
+            return (nb,y_len,new_x_len,nch,2)
+        elif K.image_data_format() == 'channels_first': 
+            nb,nch,y_len,x_len = input_shape
+            new_x_len = (x_len//2)+1
+            return (nb,nch,y_len,new_x_len,2)
+
+    def get_config(self):
+        config = {'norm':self.norm}
+        base_config =super(RFFT2, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class RandomRoll2D(Layer):
     def __init__(self,max_roll=None,

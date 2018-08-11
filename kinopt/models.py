@@ -209,14 +209,22 @@ def remove_layers(config,output_layers=None):
     return 
 
 def add_names_to_layer_config(added_layers):
+    '''Adds layer names to layer config dicts
+    '''
     for input_layers in added_layers:
         for idx,layer_conf in enumerate(input_layers):
-            if 'name' not in layer_conf:
+            if 'config' not in layer_conf:
+                    layer_conf['config']  = {}
+            if 'name' not in layer_conf and 'name' not in layer_conf['config']:
                 prefix = layer_conf['class_name']
                 layer_conf['name'] = make_layer_name(prefix)
-                if 'config' not in layer_conf:
-                    layer_conf['config']  = {}
                 layer_conf['config']['name'] = layer_conf['name']
+            elif 'name' in layer_conf:
+                layer_conf['config']['name'] = layer_conf['name']
+            elif 'name' in layer_conf['config']:
+                layer_conf['name'] = layer_conf['config']['name'] 
+            else:
+                assert layer_conf['name'] == layer_conf['config']['name']
             
 def insert_layers(config,layer_idx,added_layers):
     '''inserts all added layers sequentially into the config at the layer_idx
@@ -233,6 +241,7 @@ def insert_layers(config,layer_idx,added_layers):
 def make_layer_name(prefix):
     return _to_snake_case(prefix) + '_' + str(K.get_uid(prefix))
 
+    
 def build_inbound_node(input_name):
     #TODO:!!FORMAT ASSUMPTION
     return [[[input_name,0,0,{}]]]
