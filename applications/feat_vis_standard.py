@@ -24,9 +24,9 @@ def build_default_json(preprocess_mode):
     "added_layers":
         [
           [
-#           {
-#            "class_name":"ChannelDecorrelate",
-#            },
+           {
+            "class_name":"ChannelDecorrelate",
+            },
            {
             "class_name":"LogisticTransform",
             "config":{'scale':255.,
@@ -104,7 +104,7 @@ if __name__ == '__main__':
                         help='height and width of the image')
     parser.add_argument('--num_iter', action='store',
                         dest='num_iter',
-                        default=512,type=int,
+                        default=1000,type=int,
                         help='number of optimization iterations')
     parser.add_argument('--preprocess_mode', action='store',
                         dest='preprocess_mode',default='caffe',
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     image_size =args.image_size
     img_shape = (1,image_size,image_size,3)
     
-    init_img = np.random.randn(*img_shape)
+    init_img = 0.01*np.random.randn(*img_shape)
     #Load Model
     custom_objs = tf_layers_dict
     if 'custom_objects' in config_json:      

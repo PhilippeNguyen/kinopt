@@ -141,19 +141,41 @@ class ChannelDecorrelate(Layer):
     def __init__(self,whitening_matrix=None,**kwargs):
         super(ChannelDecorrelate, self).__init__(**kwargs)
         if whitening_matrix is None:
-            whitening_matrix = np.array(
-                                [[ 0.64636492,  0.,          0.        ],
-                                 [-0.74520612,  0.67786914,  0.        ],
-                                 [ 0.16395189, -0.5827935,   0.2863121 ]],
-                                dtype=np.float32)
+
+            wht_mat = np.array(
+                               [[0.6317 , 0.5744, 0.5204],
+                               [0.      , 0.2557, 0.2949],
+                               [0.      , 0.    , 0.2675]],
+                                        dtype=np.float32)
                                         
-            self.whitening_matrix = whitening_matrix
+            
+        elif whitening_matrix == 'lucid':
+            '''Whitening matrix used by the Lucid library, 
+                Uses PCA whitening (?)
+            '''
+            wht_mat = np.array(
+                            [[0.5628,  0.5844,  0.5844],
+                            [ 0.1948,  0.,     -0.1948],
+                            [ 0.0432, -0.1082,  0.0649]],
+                                        dtype=np.float32)
         elif type(whitening_matrix) is np.ndarray:
-            self.whitening_matrix = np.float32(whitening_matrix)
+            wht_mat = np.float32(whitening_matrix)
         else:
             #TODO: Check if tensorflow tensor
             raise Exception('whitening_matrix must be a numpy array')
-
+            
+        self.whitening_matrix = wht_mat
+        
+        '''
+        Some other whitening matrices (computed from same data, 
+        but different transforms of the input)
+       
+        whitening_matrix = np.array(
+                            [[ 0.69512309, -0.71428814,  0.08121785],
+                            [ 0.        ,  0.72797713, -0.56444855],
+                            [ 0.        ,  0.        ,  0.3145091 ]],
+                        dtype=np.float32)
+        '''
         
     def call(self,x):
         x_shape = x.get_shape()
