@@ -37,7 +37,43 @@ class Jitter2D(Layer):
         config = {'jitter': self.jitter}
         base_config = super(Jitter2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+class Resize2D(Layer):
+    def __init__(self,
+                 new_h,
+                 new_w,
+                 **kwargs):
+        super(Resize2D, self).__init__(**kwargs)
+        self.h = new_h
+        self.w = new_w
+
     
+    def call(self,x):
+        x_shape = x.get_shape().as_list()
+        
+        if K.image_data_format() == 'channels_first':
+            x = tf.transpose(x,[0,2,3,1])
+            
+        x = tf.image.resize_bilinear(x,(self.h,self.w))
+        
+        if K.image_data_format() == 'channels_first':
+            x = tf.transpose(x,[0,3,1,2])
+        x.set_shape(self.compute_output_shape(x_shape))
+        return x
+    
+    def compute_output_shape(self,input_shape):
+        assert len(input_shape) == 4
+        if K.image_data_format() == 'channels_first':
+            nb,nch,h,w = input_shape
+            return (nb,nch,self.h,self.w)
+        elif K.image_data_format() == 'channels_last':
+            nb,h,w,nch = input_shape
+            return (nb,self.h,self.w,nch)
+        
+    def get_config(self):
+        config = {'new_h': self.h,'new_w': self.w}
+        base_config = super(Resize2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
     
 #TODO: Force back shape?
 class RandomResize2D(Layer):
@@ -72,13 +108,19 @@ class RandomResize2D(Layer):
 class RandomRotate2D(Layer):
     def __init__(self,
              rotate_vals=None,
+             angle_mode='degrees',
              **kwargs):
         super(RandomRotate2D, self).__init__(**kwargs)
+        self.angle_mode = angle_mode
         if rotate_vals is None:
                 rotate_vals = [-5.,-4.,-3.,-2.,-1.,0.,1.,2.,3.,4.,5.]
         self.rotate_vals = rotate_vals
+        
+        if self.angle_mode == 'degrees':
+            rad_vals = [np.pi*deg/180. for deg in self.rotate_vals]
+            
         self.logs = [1. for _ in self.rotate_vals]
-        self.rotate_vals_tf =  tf.convert_to_tensor(self.rotate_vals)
+        self.rotate_vals_tf =  tf.convert_to_tensor(rad_vals)
 
     def call(self,x):
         rotate_sample = tf.multinomial(tf.log([self.logs]), 1)
@@ -87,7 +129,8 @@ class RandomRotate2D(Layer):
         return x
 
     def get_config(self):
-        config = {'rotate_vals': self.rotate_vals}
+        config = {'rotate_vals': self.rotate_vals,
+                  'angle_mode':self.angle_mode}
         base_config = super(RandomRotate2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
     
@@ -260,7 +303,8 @@ class FourierScaling(Layer):
         
         norm_x.set_shape(x_shape)
         return norm_x
-    
+    def compute_output_shape(self,input_shape):
+        return input_shape
     def get_config(self):
         config = {'x_len':self.x_len}
         base_config = super(FourierScaling, self).get_config()
