@@ -8,7 +8,6 @@ import keras.backend as K
 from keras.layers import Layer
 import numpy as np
 
-
 class Jitter2D(Layer):
     def __init__(self,
              jitter=16,
@@ -17,27 +16,66 @@ class Jitter2D(Layer):
         if isinstance(jitter,int):
             self.jitter = (jitter,jitter)
         else:
+            assert isinstance(jitter,(tuple,list)) and len(jitter)==2
             self.jitter = jitter
-
-    
+            
     def call(self,x):
+        if K.image_data_format() == 'channels_first':
+            x = tf.transpose(x,[0,2,3,1])
+            
         _,h,w,_ =  x.get_shape().as_list()
         x = tf.image.resize_image_with_crop_or_pad(x,h+self.jitter[0],
                              w+self.jitter[1])
         y_shift_1 = tf.random_uniform([],minval=0,
-                                    maxval=(self.jitter[0]//2),
+                                    maxval=(self.jitter[0]),
                                     dtype=tf.int32)
         x_shift_1 = tf.random_uniform([],minval=0,
-                                    maxval=(self.jitter[1]//2),
+                                    maxval=(self.jitter[1]),
                                     dtype=tf.int32)
         x = tf.image.crop_to_bounding_box(x,y_shift_1,x_shift_1,h,w)
+        
+        if K.image_data_format() == 'channels_first':
+            x = tf.transpose(x,[0,3,1,2])
+        
         return x
     
     def get_config(self):
         config = {'jitter': self.jitter}
         base_config = super(Jitter2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+    
+class RandomCrop2D(Layer):
+    '''Should work like Jitter2D, but uses the random_crop function
+        TODO: Figure out whats wrong, errors under strange circumstances
+    '''
+    def __init__(self,
+             jitter=16,
+             **kwargs):
+        super(RandomCrop2D, self).__init__(**kwargs)
+        if isinstance(jitter,int):
+            self.jitter = (jitter,jitter)
+        else:
+            assert isinstance(jitter,(tuple,list)) and len(jitter)==2
+            self.jitter = jitter
 
+    def call(self,x):
+        if K.image_data_format() == 'channels_first':
+            nb,nch,h,w =  x.get_shape().as_list()
+            new_shape =(nb,nch,h-self.jitter[0],w-self.jitter[1])
+
+        elif K.image_data_format() == 'channels_last':
+            nb,h,w,nch =  x.get_shape().as_list()
+            new_shape =(nb,h-self.jitter[0],w-self.jitter[1],nch)
+            
+        x =  tf.random_crop(x,new_shape)
+        x.set_shape(new_shape)
+        return x
+    
+    def get_config(self):
+        config = {'jitter': self.jitter}
+        base_config = super(RandomCrop2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+    
 class Resize2D(Layer):
     def __init__(self,
                  new_h,
