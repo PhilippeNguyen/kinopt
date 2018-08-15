@@ -53,20 +53,14 @@ def build_default_json(preprocess_mode):
             "class_name":"RandomResize2D",
             "config":
               {
-                "resize_vals":[0.90,0.925,0.95,0.975,
-                               1.0,
-                               1.025,1.05,1.075,1.10],
+                "resize_vals":np.arange(0.75,1.25,0.025),
               },
             },
             {
             "class_name":"RandomRotate2D",
             "config":
               {
-                "rotate_vals":[-10.0,-9.0,-8.0,-7.0,-6.0,
-                              -5.0,-4.0,-3.0,-2.0,-1.0,
-                               0.0,0.0,0.0,0.0,0.0,
-                               1.0,2.0,3.0,4.0,5.0,
-                               6.0,7.0,8.0,9.0,10.0],
+                "rotate_vals":np.arange(-45.,45.),
               },
             },
             {
