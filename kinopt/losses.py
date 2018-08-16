@@ -24,15 +24,22 @@ def get_layer_output(model,layer_identifier):
                      'layer_identifier:', layer_identifier)
     return layer_output
 
-def get_tensor_value(input_tensor,
+def get_neuron(input_tensor,
                      batch_idx=None,feature_idx=None):
+    '''Get specific subtensor of a 4D tensor (for images)
+        For easy reading.
+        TODO: change name/remove?Too specific for 2D image models.
+    '''
     batch_idx_s = slice(None) if batch_idx is None else batch_idx
     feature_idx_s = slice(None) if feature_idx is None else feature_idx
-    dim_order = K.image_dim_ordering()
-    if dim_order == 'tf':
+#    y_idx = slice(None) if y_idx is None else y_idx
+#    x_idx = slice(None) if x_idx is None else x_idx
+    
+    dim_order = K.image_data_format()
+    if dim_order == 'channels_last':
         return input_tensor[batch_idx_s,...,feature_idx_s]
-    elif dim_order == 'th':
-        return input_tensor[batch_idx_s,feature_idx_s,...,]
+    elif dim_order == 'channels_first':
+        return input_tensor[batch_idx_s,feature_idx_s,...]
     else:
         raise Exception('Unknown K.image_dim_ordering')
     
@@ -62,7 +69,7 @@ def compile_with_batches(model,batch_idx_1,batch_idx_2):
 #def L2(tensor):
 #    return -K.square(K.mean(tensor))
 def tensor_norm(input_tensor,batch_index,feature_idx):
-    sel_tensor = get_tensor_value(input_tensor,
+    sel_tensor = get_neuron(input_tensor,
                                batch_idx=batch_index,
                                feature_idx=feature_idx)
     return -K.square(K.mean(sel_tensor))

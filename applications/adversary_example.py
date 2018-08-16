@@ -7,7 +7,7 @@ Created on Mon Feb  5 23:45:59 2018
 
 import imageio
 import keras
-
+import keras.backend as K
 import kinopt
 
 import argparse
@@ -15,16 +15,10 @@ import numpy as np
 import json
 import os
 from skimage.transform import resize
-from keras.applications.imagenet_utils import decode_predictions
+from keras.applications.imagenet_utils import decode_predictions,preprocess_input
 fs = os.path.sep
 
-'''Default 
-'''
-default_json = {
-"custom_objects":{},
-}
-
-    
+   
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--adversary_model', action='store', dest='adversary_model',
@@ -35,18 +29,13 @@ if __name__ == '__main__':
         help='path to model which we will try to trick with our adversarial examples')
     parser.add_argument('--image_folder', action='store', dest='image_folder',
                         required=True,
-            help='path to folder to create adversaries of')
-
-    parser.add_argument('--config_json', action='store',
-                        dest='config_json',
-                        default=None,
-                        help=('json configuration for added json.'
-                              'If None, uses default configuration'))
-    
+            help=('path to folder to create adversaries of. Note: will '
+                  'load all images for optimization at once, if there are too many,'
+                  ' it will likely crash'))
 
     parser.add_argument('--num_iter', action='store',
                         dest='num_iter',
-                        default=25,type=int,
+                        default=100,type=int,
                         help='number of optimization iterations')
     parser.add_argument('--class_index', action='store',
                         dest='class_index',
@@ -57,28 +46,24 @@ if __name__ == '__main__':
                         dest='image_size',
                         default=224,type=int,
                         help='height and width of the image')
+    parser.add_argument('--preprocess_mode', action='store',
+                        dest='preprocess_mode',default='caffe',
+                        help='')
     args = parser.parse_args()
     
     #set up 
-        
-    config_json = args.config_json
-    if config_json is not None:
-        with open(config_json,'r') as f:
-            config_json = json.load(f)
-    else:
-        config_json = default_json
     im_size = (args.image_size,args.image_size)
     
     label_sample = np.zeros((1,1000))
     label_sample[:,args.class_index] = 1
     label_name= decode_predictions(label_sample)[0][0][1]
+    
     #Preprocessing
     imgs = None
     for img_name in os.listdir(args.image_folder):
-        
         img = np.float32(imageio.imread(args.image_folder+fs+img_name))
         img = resize(img,im_size,preserve_range=True)
-        img = kinopt.preprocessors.tf_preprocessor(img)
+        img = preprocess_input(img,mode=args.preprocess_mode)
         img = np.expand_dims(img,axis=0)
         if imgs is not None:
             imgs = np.concatenate((imgs,img),axis=0)
@@ -86,27 +71,16 @@ if __name__ == '__main__':
             imgs = img
     
     #Load Model
-    if 'custom_objects' in config_json:
-        custom_objs = config_json['custom_objects']
-        kinopt.utils.parse_custom_objs(custom_objs)
-    else:
-        custom_objs = {}
-        
-    if 'added_layers' in config_json:
-        added_layers = config_json['added_layers']
-    else:
-        added_layers = None
-            
-    adv_model = kinopt.models.load_model(args.adversary_model,initial_inputs=imgs,
-                                     inserted_layers=added_layers,
-                                     custom_objects=custom_objs)
+    adv_model = kinopt.models.load_model(args.adversary_model,initial_inputs=imgs)
     
     #compile (make loss, make updates)
-    loss_build = kinopt.losses.neuron_activation(neuron_index=args.class_index)
-    
-    loss = loss_build.compile(adv_model)
-#    optimizer = keras.optimizers.Adam(lr=0.05)
-    optimizer = kinopt.optimizers.FGS(eps=0.1)
+   
+    fit_tensor = adv_model.output
+    neuron = kinopt.losses.get_neuron(fit_tensor,
+                                     feature_idx=args.class_index)
+    loss = -(K.mean(neuron))
+    optimizer = keras.optimizers.Adam(lr=0.05)
+#    optimizer = kinopt.optimizers.FGS(eps=0.1)
     
 
     #adversary generation
@@ -114,9 +88,7 @@ if __name__ == '__main__':
                                    imgs,num_iter=args.num_iter)
     
 
-    defense_model = kinopt.models.load_model(args.defense_model,initial_inputs=imgs,
-                                     inserted_layers=added_layers,
-                                     custom_objects=custom_objs)
+    defense_model = kinopt.models.load_model(args.defense_model,initial_inputs=imgs)
     
     #defense predictions
     og_preds =decode_predictions(defense_model.predict(imgs))

@@ -115,7 +115,7 @@ if __name__ == '__main__':
                         help='')
     args = parser.parse_args()
     
-    #set up 
+    #Set up / Load config
     try:
         layer_identifier = int(args.layer_identifier)
     except:
@@ -134,10 +134,9 @@ if __name__ == '__main__':
     else:
         config_json = build_default_json(args.preprocess_mode)
     
-    #Preprocessing
+    #Initializing input
     image_size =args.image_size
     img_shape = (1,image_size,image_size//2+1,3,2)
-    
     init_img = 0.01*np.random.randn(*img_shape)
     
     #Load Model
@@ -151,14 +150,16 @@ if __name__ == '__main__':
     model = kinopt.models.load_model(args.model,initial_inputs=init_img,
                                      inserted_layers=added_layers,
                                      custom_objects=custom_objs)
+    
+    #Function for getting the output from the 'png_layer'
     png_func = K.function([model.input],
                           [kinopt.utils.get_layer_output(model,'png_layer')])
     
-    #compile (make loss, make updates)
+    #compile (make loss, make optimizer)
     fit_tensor = kinopt.utils.get_layer_output(model,layer_identifier)
-    fit_tensor = kinopt.utils.get_tensor_value(fit_tensor,
-                                               feature_idx=args.neuron_index)
-    loss = -(K.mean(fit_tensor))
+    neuron = kinopt.utils.get_neuron(fit_tensor,
+                                         feature_idx=args.neuron_index)
+    loss = -(K.mean(neuron))
     optimizer = keras.optimizers.Adam(lr=0.05)
     
     
