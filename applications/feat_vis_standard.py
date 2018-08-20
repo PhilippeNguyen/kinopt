@@ -156,7 +156,7 @@ if __name__ == '__main__':
     
     #compile (make loss, make optimizer)
     fit_tensor = kinopt.utils.get_layer_output(model,layer_identifier)
-    neuron = kinopt.utils.get_neuron(fit_tensor,
+    neuron = kinopt.losses.get_neuron(fit_tensor,
                                          feature_idx=args.neuron_index)
     loss = -(K.mean(neuron))
     optimizer = keras.optimizers.Adam(lr=0.05)

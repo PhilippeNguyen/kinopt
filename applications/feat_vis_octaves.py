@@ -10,86 +10,80 @@ import imageio
 import keras
 
 import kinopt
-
+import keras.backend as K
 import argparse
 import numpy as np
 import json
 import os
+from kinopt.layers.tf_layers import tf_layers_dict,ChannelDecorrelate
+from kinopt.layers import LogisticTransform
+
 fs = os.path.sep
 
 '''Default 
 '''
-#default_added_json=[[]]
-default_json = {
-"added_layers":
-    [
-      [
-#        {
-#        "class_name":"RandomRoll2D",
-#        "config":
-#             {
-#             "name":"rollshift1",
-#             
-#             },
-#        "name":"rollshift1"
-#        },
-        {
-        "class_name":"Cholesky2D",
-        "config":
-          {
-            "name":"cholesky1"
-          },
-        "name":"cholesky1"
-        },
-        {
-        "class_name":"Jitter2D",
-        "config":
-          {
-            "jitter":16,
-            "name":"jitter1"
-          },
-        "name":"jitter1"
-        },
-        {
-        "class_name":"RandomResize2D",
-        "config":
-          {
-            "resize_vals":[0.95,0.975,1.0,1.025,1.05],
-            "name":"resize1"
-          },
-        "name":"resize1"
-        },
-        {
-        "class_name":"RandomRotate2D",
-        "config":
-          {
-            "rotate_vals":[-5.0,-4.0,-3.0,-2.0,-1.0,0.0,1.0,2.0,3.0,4.0,5.0],
-            "name":"rotate1"
-          },
-        "name":"rotate1"
-        },
-        {
-        "class_name":"Jitter2D",
-        "config":
-          {
-            "jitter":8,
-            "name":"jitter2"
-          },
-        "name":"jitter2"
-        }
-      ]
-    ],
 
-"custom_objects":{},
-"initializer":
-    {
-    "class_name":"RandomUniform",
-    "config":{
-                "minval":-0.001,
-                "maxval":0.001
-              }
+def build_png_model(batch_shape):
+    input_layer = keras.layers.Input(batch_shape=batch_shape)
+    x = ChannelDecorrelate()(input_layer)
+    x = LogisticTransform(scale=255.)(x)
+    return keras.models.Model(input_layer,x)
+#default_added_json=[[]]
+def build_default_json(preprocess_mode):
+    default_json = {
+    "added_layers":
+        [
+          [
+           {
+            "class_name":"ChannelDecorrelate",
+            },
+           {
+            "class_name":"LogisticTransform",
+            "config":{'scale':255.,
+                      'name':'png_layer'},
+              'name':'png_layer'
+            },
+           {
+            "class_name":"ImagenetPreprocessorTransform",
+            "config":{'mode':preprocess_mode}
+            },
+            {
+            "class_name":"RandomRoll2D",
+            },
+            {
+            "class_name":"Jitter2D",
+            "config":
+              {
+                "jitter":16,
+              },
+            },
+            {
+            "class_name":"RandomResize2D",
+            "config":
+              {
+                "resize_vals":np.arange(0.75,1.25,0.025),
+              },
+            },
+            {
+            "class_name":"RandomRotate2D",
+            "config":
+              {
+                "rotate_vals":np.arange(-45.,45.),
+              },
+            },
+            {
+            "class_name":"Jitter2D",
+            "config":
+              {
+                "jitter":8,
+              },
+            }
+          ]
+        ],
+    
+    "custom_objects":{},
     }
-}
+    return default_json
 
 
 
@@ -116,7 +110,6 @@ if __name__ == '__main__':
                         default=None,
                         help=('json configuration for added json.'
                               'If None, uses default configuration'))
-    
     parser.add_argument('--model_size', action='store',
                         dest='model_size',
                         default=224,type=int,
@@ -129,10 +122,15 @@ if __name__ == '__main__':
                         dest='num_iter',
                         default=500,type=int,
                         help='number of optimization iterations')
-
+    parser.add_argument('--preprocess_mode', action='store',
+                        dest='preprocess_mode',default='caffe',
+                        help='')
+    parser.add_argument('--num_octaves', action='store',
+                    dest='num_octaves',default=4,type=int,
+                    help='')
     args = parser.parse_args()
     
-    #set up 
+    #Set up / Load config
     try:
         layer_identifier = int(args.layer_identifier)
     except:
@@ -142,55 +140,54 @@ if __name__ == '__main__':
     else:
         output = args.output if args.output.endswith(fs) else args.output+fs
         os.makedirs(output,exist_ok=True)
-#        output = output+'img.png'
+        output = output+'img.png'
         
     config_json = args.config_json
     if config_json is not None:
         with open(config_json,'r') as f:
             config_json = json.load(f)
     else:
-        config_json = default_json
+        config_json = build_default_json(args.preprocess_mode)
     
-    #Preprocessing
+    #Initializing input
     model_size =args.model_size
+    im_size = args.initial_image_size
     model_shape = (1,model_size,model_size,3)
-    
-    if 'initializer' in config_json:
-        initializer = keras.initializers.get(config_json['initializer'])
-        img = kinopt.initializers.build_input(initializer,model_shape,
-                                                   dtype=np.float32)
-    else:
-        img = np.random.uniform(low=-1,high=1,
-                                 size=(1,model_shape[1],model_shape[2],3))
+    im_shape = (1,im_size,im_size,3)
+    model_img = 0.01*np.random.randn(*model_shape)
+    init_img = 0.01*np.random.randn(*im_shape)
     
     #Load Model
-    if 'custom_objects' in config_json:
-        custom_objs = config_json['custom_objects']
-        kinopt.utils.parse_custom_objs(custom_objs)
-    else:
-        custom_objs = {}
+    custom_objs = tf_layers_dict
+    if 'custom_objects' in config_json:      
+        kinopt.utils.parse_custom_objs(config_json['custom_objects'])
+        custom_objs.update(config_json['custom_objects'])
         
     if 'added_layers' in config_json:
         added_layers = config_json['added_layers']
     else:
         added_layers = None
             
-    model = kinopt.models.load_model(args.model,initial_inputs=img,
+    model = kinopt.models.load_model(args.model,initial_inputs=model_img,
                                      inserted_layers=added_layers,
                                      custom_objects=custom_objs)
     
-    #compile (make loss, make updates)
-    loss_build = kinopt.losses.neuron_activation(neuron_index=args.neuron_index,
-                                           layer_identifier=layer_identifier)
-    loss = loss_build.compile(model)
+
+    #compile (make loss, make optimizer)
+    fit_tensor = kinopt.utils.get_layer_output(model,layer_identifier)
+    neuron = kinopt.losses.get_neuron(fit_tensor,
+                                         feature_idx=args.neuron_index)
+    loss = -(K.mean(neuron))
     optimizer = keras.optimizers.Adam(lr=0.05)
     
     
     #Fit/save output
-    init_img = img[:,:args.initial_image_size,:args.initial_image_size,:]
-    deprocessor = lambda x : kinopt.utils.visstd(x[0,...,::-1])
     out = kinopt.fitting.input_fit_octaves(model,loss,optimizer,
-                                   init_img,model_shape,
-                                   num_iter=args.num_iter,
-                                   deprocessor=deprocessor,
-                                   output=output)
+                                   init_img,num_iter=args.num_iter,
+                                   model_shape=model_shape,
+                                   num_octaves=args.num_octaves)
+    
+    #Function for getting the output from the 'png_layer'
+    png_model = build_png_model(out.shape)
+    proc_img = png_model.predict(out)
+    imageio.imsave(output,proc_img[0])

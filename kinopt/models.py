@@ -11,12 +11,28 @@ import h5py
 import keras
 from keras import backend as K
 from keras.engine import saving
-from keras.models import model_from_config
+from keras.models import model_from_config,Model
 from keras import backend as K
 from keras.engine.base_layer import _to_snake_case
 from .layers.base_layers import base_layers_dict
 from .utils import parse_layer_identifiers,as_list
 
+def model_concat(model_list,get_layer=None):
+    '''Ideally, allows user to define multiple models and then stick them together,
+        This works if you only care about the model input, 
+        however tensor naming conventions start getting real weird.
+        It looks like getting the correct vector becomes very hard.
+        TODO: Make this work!
+    '''
+    assert isinstance(model_list,(tuple,list))
+    for idx,model in enumerate(model_list):
+        if idx == 0:
+            full_model = model
+            continue
+        new_out = model(full_model.output)
+        full_model = Model(full_model.input,new_out)
+    return full_model
+    
 
 def load_model(filepath,inserted_layers=None,
                custom_objects=None,
@@ -34,6 +50,8 @@ def load_model(filepath,inserted_layers=None,
     if not custom_objects:
         custom_objects = {}
     custom_objects = {**base_layers_dict,**custom_objects}
+    
+    #from keras.model.load_model
     def convert_custom_objects(obj):
         """Handles custom object lookup.
         # Arguments
