@@ -8,7 +8,7 @@ Created on Mon Jan 15 20:53:48 2018
 import keras.backend as K
 from keras.layers import Layer
 from ..utils.generic_utils import as_list
-from keras.applications.imagenet_utils import _preprocess_symbolic_input
+from keras_applications.imagenet_utils import _preprocess_symbolic_input
     
 class BatchStopGradient(Layer):
     def __init__(self,stop_batch_indices=None,**kwargs):

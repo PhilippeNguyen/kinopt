@@ -36,7 +36,10 @@ def sep_config(model_config):
     new_act_names = set()
     for idx,layer in enumerate(layers):
         config = layer['config']
-        if 'activation' in config and config['activation'] != 'linear':
+        if ('activation' in config 
+            and config['activation'] != 'linear'
+            and layer['class_name'] != 'Activation'):
+            
             #add only layer with activation removed from 
             mod_layer = copy.deepcopy(layer)
             mod_layer['config']['activation'] = 'linear'

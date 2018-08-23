@@ -137,7 +137,7 @@ if __name__ == '__main__':
     #Initializing input
     image_size =args.image_size
     img_shape = (1,image_size,image_size//2+1,3,2)
-    init_img = 0.01*np.random.randn(*img_shape)
+    init_img = 0.1*np.random.randn(*img_shape)
     
     #Load Model
     custom_objs = tf_layers_dict

@@ -68,7 +68,8 @@ def build_default_json(preprocess_mode):
             "class_name":"RandomRotate2D",
             "config":
               {
-                "rotate_vals":np.arange(-45.,45.),
+#                "rotate_vals":np.arange(-45.,45.),
+                "rotate_vals":np.arange(-10.,10.),
               },
             },
             {
@@ -154,10 +155,11 @@ if __name__ == '__main__':
     im_size = args.initial_image_size
     model_shape = (1,model_size,model_size,3)
     im_shape = (1,im_size,im_size,3)
-    model_img = 0.01*np.random.randn(*model_shape)
-    init_img = 0.01*np.random.randn(*im_shape)
+    model_img = 0.1*np.random.randn(*model_shape)
+    init_img = 0.1*np.random.randn(*im_shape)
     
     #Load Model
+    print('loading model...')
     custom_objs = tf_layers_dict
     if 'custom_objects' in config_json:      
         kinopt.utils.parse_custom_objs(config_json['custom_objects'])
