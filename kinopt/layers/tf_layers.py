@@ -483,4 +483,23 @@ class RandomRoll2D(Layer):
         base_config =super(RandomRoll2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
     
+
+class Transpose(Layer):
+    def __init__(self,perm,conjugate=False,
+         **kwargs):
+        super(Transpose, self).__init__(**kwargs)
+        self.perm = perm
+        self.conjugate = conjugate
+    def call(self,x):
+        return tf.transpose(x,perm=self.perm,conjugate=self.conjugate)
+    def compute_output_shape(self,input_shape):
+        new_shape = []
+        for idx in self.perm:
+            new_shape.append(input_shape[idx])
+        return tuple(new_shape)
+    def get_config(self):
+        config = {'perm':self.perm,'conjugate':self.conjugate}
+        base_config =super(Transpose, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+    
 tf_layers_dict = globals()

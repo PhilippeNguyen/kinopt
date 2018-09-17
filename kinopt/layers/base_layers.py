@@ -38,14 +38,16 @@ class BatchStopGradient(Layer):
 class LogisticTransform(Layer):
     def __init__(self,scale=1.,bias=0.,**kwargs):
         super(LogisticTransform, self).__init__(**kwargs)
-        self.scale = K.constant(scale,dtype=K.floatx())
-        self.bias = K.constant(bias,dtype=K.floatx())
+        self.scale = scale
+        self.bias = bias
         
     def call(self,x):
         return (K.sigmoid(x)*self.scale)+self.bias
     
     def get_config(self):
-        return super(LogisticTransform, self).get_config()
+        config = {'scale':self.scale,'bias':self.bias}
+        base_config =super(LogisticTransform, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
     
 class ImagenetPreprocessorTransform(Layer):
     def __init__(self,mode=None,data_format=None,**kwargs):
@@ -58,6 +60,28 @@ class ImagenetPreprocessorTransform(Layer):
                                           mode=self.mode)
     
     def get_config(self):
-        return super(ImagenetPreprocessorTransform, self).get_config()
+        config = {'mode':self.mode,'data_format':self.data_format}
+        base_config =super(ImagenetPreprocessorTransform, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+    
+class ExpandDims(Layer):
+    def __init__(self,axis,**kwargs):
+        super(ExpandDims, self).__init__(**kwargs)
+        self.axis = axis
+    def call(self,x):               
+        x = K.expand_dims(x,axis=self.axis)
+        return x
+    def compute_output_shape(self, input_shape):
+        new_shape = list(input_shape)
+        if self.axis == -1:
+            new_shape.insert(len(new_shape),1)
+        else:
+            new_shape.insert(self.axis,1)
+        return tuple(new_shape)
+    def get_config(self):
+        config = {'axis':self.axis}
+        base_config =super(ExpandDims, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
+    
 base_layers_dict = globals()
