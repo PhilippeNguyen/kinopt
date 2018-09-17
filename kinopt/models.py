@@ -17,21 +17,21 @@ from keras.engine.base_layer import _to_snake_case
 from .layers.base_layers import base_layers_dict
 from .utils import parse_layer_identifiers,as_list
 
-def model_concat(model_list,get_layer=None):
-    '''Ideally, allows user to define multiple models and then stick them together,
-        This works if you only care about the model input, 
-        however tensor naming conventions start getting real weird.
-        It looks like getting the correct vector becomes very hard.
-        TODO: Make this work!
-    '''
-    assert isinstance(model_list,(tuple,list))
-    for idx,model in enumerate(model_list):
-        if idx == 0:
-            full_model = model
-            continue
-        new_out = model(full_model.output)
-        full_model = Model(full_model.input,new_out)
-    return full_model
+#def model_concat(model_list,get_layer=None):
+#    '''Ideally, allows user to define multiple models and then stick them together,
+#        This works if you only care about the model input, 
+#        however tensor naming conventions start getting real weird.
+#        It looks like getting the correct vector becomes very hard.
+#        TODO: Make this work!
+#    '''
+#    assert isinstance(model_list,(tuple,list))
+#    for idx,model in enumerate(model_list):
+#        if idx == 0:
+#            full_model = model
+#            continue
+#        new_out = model(full_model.output)
+#        full_model = Model(full_model.input,new_out)
+#    return full_model
     
 
 def load_model(filepath,inserted_layers=None,
@@ -43,37 +43,48 @@ def load_model(filepath,inserted_layers=None,
         as well inserts extra layers after the input
     """
     K.set_learning_phase(False)
-
+    
+    #Make sure inserted_layers is a list of lists (added layers for each input)
+    if not isinstance(inserted_layers[0],list):
+        inserted_layers = list(inserted_layers)
+    added_objects  = convert_layer_to_config(inserted_layers)
+    #Make sure initial_inputs is a list of inputs
     if (initial_inputs is not None 
         and not isinstance(initial_inputs,list)):
         initial_inputs = [initial_inputs]
+        
+    #Make sure new_output_layers is a list of outputs
+    if (new_output_layers is not None 
+        and not isinstance(new_output_layers,list)):
+        new_output_layers = [new_output_layers]
+        
     if not custom_objects:
         custom_objects = {}
-    custom_objects = {**base_layers_dict,**custom_objects}
+    custom_objects = {**base_layers_dict,**custom_objects,**added_objects}
     
     #from keras.model.load_model
-    def convert_custom_objects(obj):
-        """Handles custom object lookup.
-        # Arguments
-            obj: object, dict, or list.
-        # Returns
-            The same structure, where occurrences
-                of a custom object name have been replaced
-                with the custom object.
-        """
-        if isinstance(obj, list):
-            deserialized = []
-            for value in obj:
-                deserialized.append(convert_custom_objects(value))
-            return deserialized
-        if isinstance(obj, dict):
-            deserialized = {}
-            for key, value in obj.items():
-                deserialized[key] = convert_custom_objects(value)
-            return deserialized
-        if obj in custom_objects:
-            return custom_objects[obj]
-        return obj
+#    def convert_custom_objects(obj):
+#        """Handles custom object lookup.
+#        # Arguments
+#            obj: object, dict, or list.
+#        # Returns
+#            The same structure, where occurrences
+#                of a custom object name have been replaced
+#                with the custom object.
+#        """
+#        if isinstance(obj, list):
+#            deserialized = []
+#            for value in obj:
+#                deserialized.append(convert_custom_objects(value))
+#            return deserialized
+#        if isinstance(obj, dict):
+#            deserialized = {}
+#            for key, value in obj.items():
+#                deserialized[key] = convert_custom_objects(value)
+#            return deserialized
+#        if obj in custom_objects:
+#            return custom_objects[obj]
+#        return obj
     with h5py.File(filepath, mode='r') as f:
         # instantiate model
         model_config = f.attrs.get('model_config')
@@ -225,6 +236,35 @@ def remove_layers(config,output_layers=None):
     #TODO:!!FORMAT ASSUMPTION
     config['output_layers'] = [[out_name,idx,0] for idx,out_name in enumerate(output_names)]
     return 
+
+def convert_layer_to_config(added_layers):
+    '''Converts every layer in added_layers into a config dict,also
+        returns a dict of class_names,class_def key-val pairs for each added layer
+        
+        TODO: Handle the case where user forgets to add a proper get_config()
+             for custom layers (will default to default keyword args parameters)
+    '''
+    added_classes = {}
+    for input_layers in added_layers:
+        for idx,layer in enumerate(input_layers):
+            if isinstance(layer,dict):
+                continue
+            elif hasattr(layer,'get_config'):
+                
+                layer_class = layer.__class__
+                if 'get_config' not in vars(layer_class):
+                    raise Exception('All layers to be inserted must have a '
+                                    'non-inherited "get_config" function. '
+                                    'Missing for layer :',layer_class)
+                class_name = layer_class.__name__
+                layer_config = layer.get_config()
+                config_dict = {'class_name':class_name,
+                               'config':layer_config}
+                input_layers[idx] = config_dict
+                added_classes[class_name] = layer_class
+            else:
+                raise ValueError('added layers must be a dict or have get_config()')
+    return added_classes
 
 def add_names_to_layer_config(added_layers):
     '''Adds layer names to layer config dicts

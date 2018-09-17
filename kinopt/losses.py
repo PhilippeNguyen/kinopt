@@ -5,61 +5,8 @@ Created on Sun Dec 24 13:17:43 2017
 
 """
 from keras import backend as K
-
-def get_layer_output(model,layer_identifier):
-    if isinstance(layer_identifier,str):
-        active_layer = model.get_layer(layer_identifier)
-        layer_output = active_layer.output
-
-    elif isinstance(layer_identifier,int):
-        active_layer = model.get_layer(index=layer_identifier)
-        layer_output = active_layer.output
-
-    elif layer_identifier is None:
-        layer_output = model.output
-    elif K.is_keras_tensor(layer_identifier):
-        layer_output = layer_identifier
-    else:
-        raise ValueError('Could not interpret '
-                     'layer_identifier:', layer_identifier)
-    return layer_output
-
-def get_neuron(input_tensor,
-                     batch_idx=None,feature_idx=None):
-    '''Get specific subtensor of a 4D tensor (for images)
-        For easy reading.
-        TODO: change name/remove?Too specific for 2D image models.
-    '''
-    batch_idx_s = slice(None) if batch_idx is None else batch_idx
-    feature_idx_s = slice(None) if feature_idx is None else feature_idx
-#    y_idx = slice(None) if y_idx is None else y_idx
-#    x_idx = slice(None) if x_idx is None else x_idx
-    
-    dim_order = K.image_data_format()
-    if dim_order == 'channels_last':
-        return input_tensor[batch_idx_s,...,feature_idx_s]
-    elif dim_order == 'channels_first':
-        return input_tensor[batch_idx_s,feature_idx_s,...]
-    else:
-        raise Exception('Unknown K.image_dim_ordering')
-    
-def compile_external_input(model,compare_input):
-    layer_output = get_layer_output(model)
-    compare_output = get_layer_output(model)
-    sub_func = K.function([model.input],[compare_output])
-    compare_var = K.variable(sub_func([compare_input])[0])
-    
-    return (layer_output,compare_var)
-
-def compile_external_tensor(model,compare_tensor):
-    layer_output = get_layer_output(model)
-    compare_var = K.variable(compare_tensor)
-    return (layer_output,compare_var)
-
-def compile_with_batches(model,batch_idx_1,batch_idx_2):
-    layer_output = get_layer_output(model)
-    return (layer_output[batch_idx_1],
-            layer_output[batch_idx_2])
+from .utils.tensor_utils import get_neuron
+import numpy as np
     
 #deprecated, too simple
 #def neuron_activation(tensor):
@@ -77,10 +24,20 @@ def tensor_sse(input_tensor,compare_var):
     return K.sum(K.square(input_tensor - compare_var))
 
 
+def temporal_variation(input_tensor,batch_index=None,
+                      neuron_index=None,power=1.):
+    batch_idx = slice(batch_index)
+    feature_idx = slice(neuron_index)
+    center = input_tensor[batch_idx,:-1,feature_idx]
+    shift = input_tensor[batch_idx,1:,feature_idx]
+    return K.sum(K.pow(K.square(center-shift),power ))
+
 
 def spatial_variation(input_tensor,
                       batch_index=None,
                       neuron_index=None,power=1.):
+    '''For 2
+    '''
     
     batch_idx = slice(batch_index)
     feature_idx = slice(neuron_index)
@@ -98,7 +55,13 @@ def spatial_variation(input_tensor,
     return K.sum(K.pow(K.square(center-y_shift) 
                          + K.square(center-x_shift),power ))
     
-def style_loss(input_tensor,compare_tensor):
+def style_loss(input_tensor,compare_tensor,norm_size=True,norm_channels=True):
+    '''
+        norm_size : if true, divide the loss by the squared number of pixels 
+        norm_channels : if true, divide the loss by the squared number of channels 
+        Turning off the normalization params seem to be useful when machine precision
+        becomes an issue
+    '''
     if K.ndim(input_tensor) == 4:
         input_tensor = input_tensor[0]
     if K.ndim(compare_tensor) == 4:
@@ -107,9 +70,15 @@ def style_loss(input_tensor,compare_tensor):
     S = gram_matrix(input_tensor)
     C = gram_matrix(compare_tensor)
     
-    cols,rows,nch = input_tensor.shape.as_list()
-    size = cols*rows
-    return K.sum(K.square(S - C)) / (4. * (nch ** 2) * (size ** 2))
+    tensor_shape = input_tensor.shape.as_list()
+    not_ch,nch = (tensor_shape[:-1],tensor_shape[-1])
+    size = np.prod(not_ch)
+    loss = K.sum(K.square(S - C)) / 4.
+    if norm_size:
+        loss /= (size ** 2)
+    if norm_channels:
+        loss /= (nch ** 2)
+    return loss
 
 def gram_matrix(x):
     '''see 

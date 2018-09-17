@@ -8,6 +8,7 @@ import keras
 from keras import backend as K
 import sys
 from .optimizers import get_input_updates
+from .utils.generic_utils import as_list
 import keras.backend as K
 import numpy as np
 from functools import partial
@@ -15,6 +16,23 @@ import tensorflow as tf
 from scipy.ndimage.interpolation import zoom
 from imageio import imsave
 
+def input_fit_var(fit_tensor,loss,optimizer,num_iter=500,verbose=1):
+    fit_t = as_list(fit_tensor)
+    updates = optimizer.get_updates(loss=[loss],
+                                     params=fit_t,
+                                     )
+    
+    opt_func = K.function([],
+                         [loss],
+                         updates=updates,
+                         name='input_optimizer')
+    tmp_input = []
+    for i in range(num_iter):
+        this_loss = opt_func(tmp_input)[0]
+        if verbose:
+            sys.stdout.write('\r>> iter: %d , loss: %f' % (i,this_loss))
+            sys.stdout.flush()
+    return
 
 def input_fit(model,loss,optimizer,init_img,num_iter=500,copy=True,verbose=1):
     
