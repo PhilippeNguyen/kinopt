@@ -45,9 +45,12 @@ def load_model(filepath,inserted_layers=None,
     K.set_learning_phase(False)
     
     #Make sure inserted_layers is a list of lists (added layers for each input)
-    if not isinstance(inserted_layers[0],list):
-        inserted_layers = list(inserted_layers)
-    added_objects  = convert_layer_to_config(inserted_layers)
+    if inserted_layers is not None:
+        if not isinstance(inserted_layers[0],list):
+            inserted_layers = list(inserted_layers)
+        added_objects  = convert_layer_to_config(inserted_layers)
+    else:
+        added_objects = {}
     #Make sure initial_inputs is a list of inputs
     if (initial_inputs is not None 
         and not isinstance(initial_inputs,list)):
@@ -115,7 +118,8 @@ def check_tensor(x):
         return False
     
 def update_config(config,added_layers=None,
-                  new_output_layers=None,initial_inputs=None):
+                  new_output_layers=None,
+                  initial_inputs=None):
     remove_layers(config,new_output_layers)    
     input_layers = config['input_layers']
     

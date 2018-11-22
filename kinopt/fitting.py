@@ -16,8 +16,8 @@ import tensorflow as tf
 from scipy.ndimage.interpolation import zoom
 from imageio import imsave
 
-def input_fit_var(fit_tensor,loss,optimizer,num_iter=500,verbose=1):
-    fit_t = as_list(fit_tensor)
+def input_fit_var(fit_var,loss,optimizer,num_iter=500,verbose=1):
+    fit_t = as_list(fit_var)
     updates = optimizer.get_updates(loss=[loss],
                                      params=fit_t,
                                      )
@@ -34,14 +34,14 @@ def input_fit_var(fit_tensor,loss,optimizer,num_iter=500,verbose=1):
             sys.stdout.flush()
     return
 
-def input_fit(model,loss,optimizer,init_img,num_iter=500,copy=True,verbose=1):
+def input_fit(fit_placeholder,loss,optimizer,init_img,
+              num_iter=500,copy=True,verbose=1):
     
-    model_input = model.input
 
-    grad,optimizer_updates = get_input_updates(optimizer,loss,model_input)
+    grad,optimizer_updates = get_input_updates(optimizer,loss,fit_placeholder)
     
     
-    opt_func = K.function([model_input],
+    opt_func = K.function([fit_placeholder],
                          [loss,grad],
                          updates=optimizer_updates,
                          name='input_optimizer')

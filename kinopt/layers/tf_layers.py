@@ -75,7 +75,50 @@ class RandomCrop2D(Layer):
         config = {'jitter': self.jitter}
         base_config = super(RandomCrop2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+class Crop2D(Layer):
+    def __init__(self,
+            offset_height,
+            offset_width,
+            target_height,
+            target_width,
+             **kwargs):
+        super(Crop2D, self).__init__(**kwargs)
+        self.offset_height = offset_height
+        self.offset_width = offset_width
+        self.target_height = target_height
+        self.target_width = target_width
+
+    def call(self,x):
+        if K.image_data_format() == 'channels_first':
+            x = tf.transpose(x,perm=[0,2,3,1])
+        x = tf.image.crop_to_bounding_box(x,
+                                          offset_height=self.offset_height,
+                                          offset_width=self.offset_width,
+                                          target_height=self.target_height,
+                                          target_width=self.target_width
+                                          )
+        if K.image_data_format() == 'channels_first':
+            x = tf.transpose(x,perm=[0,3,1,2])
+
+        return x
+    def compute_output_shape(self,input_shape):
+        assert len(input_shape) == 4
+        if K.image_data_format() == 'channels_first':
+            nb,nch,h,w = input_shape
+            return (nb,nch,self.target_height,self.target_width)
+        elif K.image_data_format() == 'channels_last':
+            nb,h,w,nch = input_shape
+            return (nb,self.target_height,self.target_width,nch)
     
+    def get_config(self):
+        config = {'target_height':self.target_height,
+                  'target_width':self.target_width,
+                  'offset_height':self.offset_height,
+                  'offset_width':self.offset_width}
+        base_config = super(Crop2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 class Resize2D(Layer):
     def __init__(self,
                  new_h,
@@ -228,7 +271,8 @@ class ChannelDecorrelate(Layer):
                                [0.      , 0.2557, 0.2949],
                                [0.      , 0.    , 0.2675]],
                                         dtype=np.float32)
-                                        
+        elif type(whitening_matrix) is np.ndarray:
+            wht_mat = np.float32(whitening_matrix)
             
         elif whitening_matrix == 'lucid':
             '''Whitening matrix used by the Lucid library, 
@@ -239,8 +283,6 @@ class ChannelDecorrelate(Layer):
                             [ 0.1948,  0.,     -0.1948],
                             [ 0.0432, -0.1082,  0.0649]],
                                         dtype=np.float32)
-        elif type(whitening_matrix) is np.ndarray:
-            wht_mat = np.float32(whitening_matrix)
         else:
             #TODO: Check if tensorflow tensor
             raise Exception('whitening_matrix must be a numpy array')
@@ -387,7 +429,10 @@ class IRFFT2(Layer):
             irfft = tf.transpose(irfft,[0,2,3,1])
             
         if self.norm:
-            norm = np.multiply(*i_shape[-2:])*(np.sqrt(i_shape[1]))
+            if K.image_data_format() == 'channels_last':
+                norm = np.multiply(*i_shape[1:3])*np.sqrt(i_shape[-1])
+            elif K.image_data_format() == 'channels_first':
+                norm = np.multiply(*i_shape[-2:])*(np.sqrt(i_shape[1]))
             return irfft *np.sqrt(norm)
         else:
             return irfft
@@ -500,6 +545,58 @@ class Transpose(Layer):
     def get_config(self):
         config = {'perm':self.perm,'conjugate':self.conjugate}
         base_config =super(Transpose, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+'''See Resize2D
+class BilinearResize(Layer):
+        
+    def __init__(self,target_energy,
+         **kwargs):
+        super(BilinearResize, self).__init__(**kwargs)
+    def call(self,x):
+        pass
+    def compute_output_shape(self,input_shape):
+        pass
+    def get_config(self):
+        config = {}
+        base_config =super(BilinearResize, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+'''
+class NNResize(Layer):
+        
+    def __init__(self,new_size,
+         **kwargs):
+        super(NNResize, self).__init__(**kwargs)
+        assert K.image_data_format() == 'channels_last', 'requires channels last ordering'
+        self.new_size = new_size
+    def call(self,x):
+        return tf.image.resize_nearest_neighbor(x,self.new_size)
+    def compute_output_shape(self,input_shape):
+        new_shape = (input_shape[0],
+                     self.new_size[0],
+                     self.new_size[1],
+                     input_shape[3])
+        return new_shape
+    def get_config(self):
+        config = {'new_size':self.new_size}
+        base_config =super(NNResize, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+    
+class Gather(Layer):
+    def __init__(self,indices,axis,**kwargs):
+        super(Gather, self).__init__(**kwargs)
+        self.axis = axis
+        self.indices=indices
+    def call(self,x):               
+        x = tf.gather(x,axis=self.axis,indices=self.indices)
+        return x
+    def compute_output_shape(self, input_shape):
+        new_shape = list(input_shape)
+        new_shape[self.axis] = len(self.indices)
+        return tuple(new_shape)
+    def get_config(self):
+        config = {'axis':self.axis,'indices':self.indices}
+        base_config =super(Gather, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
     
 tf_layers_dict = globals()

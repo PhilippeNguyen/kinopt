@@ -4,7 +4,7 @@
 Created on Sat Dec 23 18:18:23 2017
 
 Tensorflow does not allow updates to tf.Tensors in the same way that keras
-usually does it. 
+usually does it for variables
 These optimizers are based off of the Keras optimizers but separate out the grad
 update from the optimizer update.
 
@@ -28,7 +28,8 @@ def get_input_updates(optimizer,loss,model_input):
                                      params=[model_input],
                                      )
     for idx,update in enumerate(updates):
-        if update.op.inputs[0].name == model_input.name:
+        if (update.__class__.__name__ =='Tensor'
+            and update.op.inputs[0].name == model_input.name):
             updated_param = updates.pop(idx)
             break
     grad = updated_param - model_input

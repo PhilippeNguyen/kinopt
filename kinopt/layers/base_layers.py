@@ -8,7 +8,9 @@ Created on Mon Jan 15 20:53:48 2018
 import keras.backend as K
 from keras.layers import Layer
 from ..utils.generic_utils import as_list
+import keras_applications
 from keras_applications.imagenet_utils import _preprocess_symbolic_input
+from distutils.version import StrictVersion
     
 class BatchStopGradient(Layer):
     def __init__(self,stop_batch_indices=None,**kwargs):
@@ -55,9 +57,15 @@ class ImagenetPreprocessorTransform(Layer):
         self.mode = mode
         self.data_format = data_format
         
-    def call(self,x):               
-        return _preprocess_symbolic_input(x,data_format=self.data_format,
-                                          mode=self.mode)
+    def call(self,x):
+        #keras_applications ver 1.0.6 is broken, need to explictly feed backend
+        if (hasattr(keras_applications,'__version__')
+            and StrictVersion(keras_applications.__version__) > StrictVersion('1.0.5')):
+            return _preprocess_symbolic_input(x,data_format=self.data_format,
+                                              mode=self.mode,backend=K)
+        else:
+            return _preprocess_symbolic_input(x,data_format=self.data_format,
+                                  mode=self.mode)
     
     def get_config(self):
         config = {'mode':self.mode,'data_format':self.data_format}
@@ -82,6 +90,7 @@ class ExpandDims(Layer):
         config = {'axis':self.axis}
         base_config =super(ExpandDims, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
 
     
 base_layers_dict = globals()

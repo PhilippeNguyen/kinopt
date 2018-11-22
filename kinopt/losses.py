@@ -7,7 +7,7 @@ Created on Sun Dec 24 13:17:43 2017
 from keras import backend as K
 from .utils.tensor_utils import get_neuron
 import numpy as np
-    
+import tensorflow as tf
 #deprecated, too simple
 #def neuron_activation(tensor):
     #TODO:NEGATIVE OR POSITIVE! CHOOSE ONE!
@@ -55,20 +55,17 @@ def spatial_variation(input_tensor,
     return K.sum(K.pow(K.square(center-y_shift) 
                          + K.square(center-x_shift),power ))
     
-def style_loss(input_tensor,compare_tensor,norm_size=True,norm_channels=True):
+def style_loss(input_tensor,compare_tensor,channel_axis,
+               norm_size=True,norm_channels=True):
     '''
         norm_size : if true, divide the loss by the squared number of pixels 
         norm_channels : if true, divide the loss by the squared number of channels 
         Turning off the normalization params seem to be useful when machine precision
         becomes an issue
     '''
-    if K.ndim(input_tensor) == 4:
-        input_tensor = input_tensor[0]
-    if K.ndim(compare_tensor) == 4:
-        compare_tensor = compare_tensor[0]
         
-    S = gram_matrix(input_tensor)
-    C = gram_matrix(compare_tensor)
+    S = gram_matrix(input_tensor,channel_axis)
+    C = gram_matrix(compare_tensor,channel_axis)
     
     tensor_shape = input_tensor.shape.as_list()
     not_ch,nch = (tensor_shape[:-1],tensor_shape[-1])
@@ -80,16 +77,21 @@ def style_loss(input_tensor,compare_tensor,norm_size=True,norm_channels=True):
         loss /= (nch ** 2)
     return loss
 
-def gram_matrix(x):
+def gram_matrix(x,channel_axis):
     '''see 
 https://github.com/keras-team/keras/blob/master/examples/neural_style_transfer.py
     flattens spatial dimensions, and generates covariance matrix between channels
     '''
-    assert K.ndim(x) == 3
-    if K.image_data_format() == 'channels_first':
-        features = K.batch_flatten(x)
-    else:
-        features = K.batch_flatten(K.permute_dimensions(x, (2, 0, 1)))
+    
+    dimensions = x._keras_shape
+    perm_dim = list(range(len(dimensions)))
+    channel = perm_dim.pop(channel_axis)
+    perm_dim.insert(1,channel)
+    
+    perm_x = tf.transpose(x,perm=perm_dim)
+    perm_shape = K.shape(perm_x)
+    features = tf.reshape(perm_x, tf.stack([K.prod(perm_shape[:2]),
+                                     K.prod(perm_shape[2:])]))
     gram = K.dot(features, K.transpose(features))
     return gram
 
