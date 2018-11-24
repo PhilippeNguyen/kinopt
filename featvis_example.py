@@ -100,6 +100,7 @@ if args.load_method == "tensor":
                                            custom_objects=tf_layers_dict)
     fit_tensor = kinopt.utils.get_layer_output(loaded_model,layer_identifier)
     fit_tensor_model = keras.models.Model([loaded_model.input],[fit_tensor])
+    
     fit_tensor = fit_tensor_model(preproc_model.output)
     input_tensor = input_layer
     png_layer = preproc_model.get_layer('png_layer').output
@@ -116,7 +117,9 @@ elif args.load_method == "layer_list":
                       Jitter2D(jitter=8)
                     ]]
     model = kinopt.models.load_model(args.model,initial_inputs=init_img,
-                                     inserted_layers=added_layers)
+                                     inserted_layers=added_layers,
+                                     custom_objects=tf_layers_dict)
+    
     input_tensor = model.input
     png_layer = model.get_layer('png_layer').output
     fit_tensor = kinopt.utils.get_layer_output(model,layer_identifier)
@@ -172,6 +175,7 @@ elif args.load_method == "config_dict":
     model = kinopt.models.load_model(args.model,initial_inputs=init_img,
                                  inserted_layers=added_layers,
                                  custom_objects=tf_layers_dict)
+    
     input_tensor = model.input
     png_layer = model.get_layer('png_layer').output
     fit_tensor = kinopt.utils.get_layer_output(model,layer_identifier)

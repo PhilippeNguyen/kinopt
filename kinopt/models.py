@@ -16,23 +16,8 @@ from keras import backend as K
 from keras.engine.base_layer import _to_snake_case
 from .layers.base_layers import base_layers_dict
 from .utils import parse_layer_identifiers,as_list
+from warnings import warn
 
-#def model_concat(model_list,get_layer=None):
-#    '''Ideally, allows user to define multiple models and then stick them together,
-#        This works if you only care about the model input, 
-#        however tensor naming conventions start getting real weird.
-#        It looks like getting the correct vector becomes very hard.
-#        TODO: Make this work!
-#    '''
-#    assert isinstance(model_list,(tuple,list))
-#    for idx,model in enumerate(model_list):
-#        if idx == 0:
-#            full_model = model
-#            continue
-#        new_out = model(full_model.output)
-#        full_model = Model(full_model.input,new_out)
-#    return full_model
-    
 
 def load_model(filepath,inserted_layers=None,
                custom_objects=None,
@@ -42,6 +27,9 @@ def load_model(filepath,inserted_layers=None,
     """loads model like keras load_model, updates the input layer,
         as well inserts extra layers after the input
     """
+    if new_output_layers is not None:
+        warn('using new_output_layers is buggy')
+        
     K.set_learning_phase(False)
     
     #Make sure inserted_layers is a list of lists (added layers for each input)
@@ -65,29 +53,7 @@ def load_model(filepath,inserted_layers=None,
         custom_objects = {}
     custom_objects = {**base_layers_dict,**custom_objects,**added_objects}
     
-    #from keras.model.load_model
-#    def convert_custom_objects(obj):
-#        """Handles custom object lookup.
-#        # Arguments
-#            obj: object, dict, or list.
-#        # Returns
-#            The same structure, where occurrences
-#                of a custom object name have been replaced
-#                with the custom object.
-#        """
-#        if isinstance(obj, list):
-#            deserialized = []
-#            for value in obj:
-#                deserialized.append(convert_custom_objects(value))
-#            return deserialized
-#        if isinstance(obj, dict):
-#            deserialized = {}
-#            for key, value in obj.items():
-#                deserialized[key] = convert_custom_objects(value)
-#            return deserialized
-#        if obj in custom_objects:
-#            return custom_objects[obj]
-#        return obj
+
     with h5py.File(filepath, mode='r') as f:
         # instantiate model
         model_config = f.attrs.get('model_config')

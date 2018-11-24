@@ -75,7 +75,7 @@ def deprocess_input(x,mode='caffe'):
         x +=0.5 
         x *= 255.
         return x
-    else:
+    elif mode=='caffe':
         if K.image_data_format() == 'channels_first':
             x[0, :, :] += 103.939
             x[1, :, :] += 116.779

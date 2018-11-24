@@ -20,6 +20,7 @@ def tensor_norm(input_tensor,batch_index,feature_idx):
                                batch_idx=batch_index,
                                feature_idx=feature_idx)
     return -K.square(K.mean(sel_tensor))
+
 def tensor_sse(input_tensor,compare_var):
     return K.sum(K.square(input_tensor - compare_var))
 
@@ -55,7 +56,7 @@ def spatial_variation(input_tensor,
     return K.sum(K.pow(K.square(center-y_shift) 
                          + K.square(center-x_shift),power ))
     
-def style_loss(input_tensor,compare_tensor,channel_axis,
+def style_loss(input_tensor,compare_tensor,channel_axis=None,
                norm_size=True,norm_channels=True):
     '''
         norm_size : if true, divide the loss by the squared number of pixels 
@@ -63,6 +64,11 @@ def style_loss(input_tensor,compare_tensor,channel_axis,
         Turning off the normalization params seem to be useful when machine precision
         becomes an issue
     '''
+    if channel_axis is None:
+        if K.image_data_format() == 'channels_last':
+            channel_axis = 3
+        elif K.image_data_format() == 'channels_first':
+            channel_axis = 1
         
     S = gram_matrix(input_tensor,channel_axis)
     C = gram_matrix(compare_tensor,channel_axis)
