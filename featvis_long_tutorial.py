@@ -20,7 +20,7 @@ parser.add_argument('--model', action='store', dest='model',
         help='path to a keras hdf5 model')
 parser.add_argument('--output', action='store', dest='output',
                     required=True,
-        help='output path')
+        help='output path,name of the output png')
 parser.add_argument('--layer_identifier', action='store',
                     dest='layer_identifier',
                     required=True,
@@ -28,7 +28,7 @@ parser.add_argument('--layer_identifier', action='store',
 parser.add_argument('--neuron_index', action='store',
                     dest='neuron_index',
                     default=0,type=int,
-                    help=('Activity of the neuron index in the given layer'
+                    help=('Activity of the neuron index (channel) in the given layer'
                           ' to optimize'))
 
 parser.add_argument('--image_size', action='store',
@@ -40,13 +40,25 @@ parser.add_argument('--num_iter', action='store',
                     default=1000,type=int,
                     help='number of optimization iterations')
 parser.add_argument('--preprocess_mode', action='store',
-                    dest='preprocess_mode',default='caffe',
-                    help='this is the preprocess mode, the same as keras-applications')
+                    dest='preprocess_mode',required=True,
+                    help='this is the preprocess mode the same as '
+                    'keras-applications.imagenet_utils.preprocess_input.'
+                    ' Which usually defaults to "caffe" ')
 parser.add_argument('--load_method', action='store',
                     dest='load_method',default='layer_list',
                     help='What load method to use, (either "layer_list", '
                     '"config_dict" or "tensor"'
                     '')
+parser.add_argument('--fit_method', action='store',
+                    dest='load_method',default='layer_list',
+                    help='What load method to use, (either "layer_list", '
+                    '"config_dict" or "tensor"'
+                    '')
+'''Note: it is recommended to maximize the response of a neuron _before_ activation,
+    If your model has it's activations not seperated from the linear layer, use the
+    separate_activations.py script found in other_scripts.
+'''
+
 args = parser.parse_args()
 output = args.output if args.output.endswith('.png') else args.output+'.png'
 
