@@ -17,7 +17,9 @@ With this, you will be able to compare the feature visualization of any keras mo
 [*****Some Images]
 
 ## Requirements
-*  tensorflow-gpu
+The code works for model trained in keras (any backend), however to run this code you'll need to use the tensorflow backend.
+
+*  tensorflow
 *  keras
 *  imageio
 *  scikit-imageio

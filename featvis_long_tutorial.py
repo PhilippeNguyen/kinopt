@@ -9,6 +9,7 @@ from kinopt.layers.tf_layers import (tf_layers_dict,
                                      ChannelDecorrelate,RandomRoll2D,
                                      Jitter2D,RandomResize2D,RandomRotate2D)
 from kinopt.layers import LogisticTransform,ImagenetPreprocessorTransform
+import tensorflow as tf
 fs = os.path.sep
 K.set_learning_phase(False)
 
@@ -35,10 +36,7 @@ parser.add_argument('--image_size', action='store',
                     dest='image_size',
                     default=224,type=int,
                     help='height and width of the image')
-parser.add_argument('--num_iter', action='store',
-                    dest='num_iter',
-                    default=1000,type=int,
-                    help='number of optimization iterations')
+
 parser.add_argument('--preprocess_mode', action='store',
                     dest='preprocess_mode',required=True,
                     help='this is the preprocess mode the same as '
@@ -48,12 +46,17 @@ parser.add_argument('--load_method', action='store',
                     dest='load_method',default='layer_list',
                     help='What load method to use, (either "layer_list", '
                     '"config_dict" or "tensor"'
-                    '')
+                    )
+parser.add_argument('--input_type', action='store',
+                    dest='input_type',default='placeholder',
+                    help='Whether to have the input be a placeholder or variable. '
+                    '"placeholder" or "variable"'
+                    )
 parser.add_argument('--fit_method', action='store',
-                    dest='load_method',default='layer_list',
-                    help='What load method to use, (either "layer_list", '
-                    '"config_dict" or "tensor"'
-                    '')
+                    dest='fit_method',default='keras',
+                    help='What type of optimizer to use, either "keras" (use keras optimizer)'
+                    ' or "scipy" (use tensorflow scipy wrapper)')
+
 '''Note: it is recommended to maximize the response of a neuron _before_ activation,
     If your model has it's activations not seperated from the linear layer, use the
     separate_activations.py script found in other_scripts.
@@ -67,10 +70,21 @@ try:
 except:
     layer_identifier = args.layer_identifier
 
+input_type = args.input_type
+
+
 #Initialize input, randomly
 image_size =args.image_size
 img_shape = (1,image_size,image_size,3)
+
 init_img = 0.1*np.random.randn(*img_shape)
+
+if input_type == 'placeholder':
+    pass
+elif input_type == 'variable':
+    init_img = K.variable(init_img)
+else:
+    raise Exception("input_type not understood")
 
 """Load the model, where kinopt starts being used.
    We can load the model, while also inserting keras layers.
@@ -97,7 +111,11 @@ init_img = 0.1*np.random.randn(*img_shape)
    
 """
 if args.load_method == "tensor":
-    input_layer = keras.layers.Input(batch_shape=img_shape)
+    if input_type == 'variable':
+        input_layer = keras.layers.Input(batch_shape=img_shape,
+                                         tensor=init_img)
+    else:
+        input_layer = keras.layers.Input(batch_shape=img_shape)
     x = ChannelDecorrelate()(input_layer)
     x = LogisticTransform(scale=255,name='png_layer')(x)
     x = ImagenetPreprocessorTransform(mode=args.preprocess_mode)(x)
@@ -202,16 +220,43 @@ png_func = K.function([input_tensor],
 neuron = kinopt.utils.get_neuron(fit_tensor,
                                      feature_idx=args.neuron_index)
 loss = -(K.mean(neuron))
-optimizer = keras.optimizers.Adam(lr=0.05)
 
 
-'''Here we actually optimize the input image, this can actually be done in two ways.
+if args.fit_method == 'keras':
+    '''Here we actually optimize the input image, this can actually be done in two ways.
 
     If the input to optimize (input_tensor) is a placeholder, use kinopt.fitting.input_fit
     If the input to optimize is a variable, use kinopt.fitting.input_fit_var, this 
         can actually be done without kinopt.
-'''
-out = kinopt.fitting.input_fit(input_tensor,loss,optimizer,
-                               init_img,num_iter=args.num_iter)
+    '''
+    num_iter= 1000
+    optimizer = keras.optimizers.Adam(lr=0.05)
+    if input_type == 'placeholder':
+        out = kinopt.fitting.input_fit(input_tensor,loss,optimizer,
+                                       init_img,num_iter=num_iter)
+        
+    else:
+        kinopt.fitting.input_fit_var(input_tensor,loss,optimizer,
+                                   num_iter=num_iter)
+        out = input_tensor.eval(session=K.get_session())
+        
+elif args.fit_method == 'scipy':
+    '''We can also use tensorflow's wrapper for the scipy optimizers
+        Note: For feat vis we add random transformation layers which makes it
+        difficult for scipy optimizers to check for convergence.
+        I show it here for the sake of the tutorial, but it won't actually converge.
+        Try using it for neural style, it works just as well as the keras Adam 
+        implementation.
+            
+    '''
+    if input_type == 'placeholder':
+        raise Exception('fit_method scikit only works with input_type variable')
+    opt = tf.contrib.opt.ScipyOptimizerInterface(
+      loss, method='L-BFGS-B', options={'maxiter': 500},
+      var_list=[input_tensor])
+    print('minimizing')
+    opt.minimize(K.get_session())
+    out = input_tensor.eval(session=K.get_session())
+    
 proc_img = png_func([out])[0]
 imageio.imsave(output,proc_img[0])
