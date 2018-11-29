@@ -1,8 +1,9 @@
 # Kinopt
 Input optimization with keras models. This can be used for feature visualization, neural style transfer,adversarial examples, and other stuff.
-|  |  |  |  |
-| --- | --- | --- | --- |
-| ![featvis 1](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/feat_vis_0.png "featvis 1") | ![featvis 2](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/feat_vis_40.png "featvis 2") | ![featvis 3](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/feat_vis_170.png "featvis 3") | ![featvis 4](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/feat_vis_730.png "featvis 4") |
+
+|  |  |  |
+| --- | --- | --- |
+| ![featvis 1](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/feat_vis_0.png "featvis 1") | ![featvis 2](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/feat_vis_40.png "featvis 2") | ![featvis 3](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/feat_vis_170.png "featvis 3") |
 
 This project provides 3 main things:
 *  A way of inserting layers into an already trained keras models**
