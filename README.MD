@@ -18,7 +18,7 @@ With this, you will be able to compare the feature visualization of any keras mo
 
 | VGG19 | GoogleNet | ResNet50 |
 | --- | --- | --- |
-|![VGG19 Bees](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/bee_googlenet.png "VGG19 Bees") | ![GoogleNet Bees](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/bee_googlenet.png "GoogleNet Bees")| ![ResNet50 Bees](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/bee_resnet50.png "ResNet50 Bees") |
+|![VGG19 Bees](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/bee_vgg19.png "VGG19 Bees") | ![GoogleNet Bees](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/bee_googlenet.png "GoogleNet Bees")| ![ResNet50 Bees](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/bee_resnet50.png "ResNet50 Bees") |
 
 ## Requirements
 The code works for model trained in keras (any backend), however to run this code you'll need to use the tensorflow backend.
