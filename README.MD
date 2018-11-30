@@ -21,7 +21,7 @@ With this, you will be able to compare the feature visualization of any keras mo
 |![VGG19 Bees](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/bee_vgg19.png "VGG19 Bees") | ![GoogleNet Bees](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/bee_googlenet.png "GoogleNet Bees")| ![ResNet50 Bees](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/bee_resnet50.png "ResNet50 Bees") |
 
 ## Requirements
-The code works for model trained in keras (any backend), however to run this code you'll need to use the tensorflow backend.
+The code works for model trained in keras (any backend), however to run this code you'll need to use the tensorflow backend. Only tested with python 3.5-3.6
 
 *  tensorflow
 *  keras
@@ -49,7 +49,7 @@ See featvis_example.py for a quick script showing how to do feature visualizatio
 Explanation of some of the script arguments:
 *  --model: path to a saved keras model. Models are saved with the model.save function. Doesn't work if you only save the weights using the Model.save_weights function. Note that you'll want to have the pointwise activations (relu/softmax/...) separated from the linear transforms (Dense/Convs/...), my script at /other_scripts/separate_activations.py should do this for you. Keras gives you access to a bunch of classification models, see [keras_applications](https://github.com/keras-team/keras-applications) (comes installed with keras). Every one of these models should work, though I couldn't try NASNetLarge since it was too big to download.
 *  --preprocess_mode: the preprocessing function to use. See [keras_applications.imagenet_utils.preprocess_input](https://github.com/keras-team/keras-applications/blob/master/keras_applications/imagenet_utils.py) for the different types of modes available. If you're using a keras_application model, then they'll be using one of the modes, and you'll probably need to dig around the source code on github to see what it is.
-*  --layer_identifier: Either the layer name or the layer index in Model.get_config['layers']
+*  --layer_identifier: Either the layer name or the layer index in Model.get_config()['layers']
 *  --neuron_index: This is the channel index of the tensor corresponding to the layer identified above
 *  --output: name/path of the output png to save the optimized input image.
 
