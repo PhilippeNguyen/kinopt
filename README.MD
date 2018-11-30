@@ -56,6 +56,13 @@ Explanation of some of the script arguments:
 See featvis_long_tutorial.py for long explanation of what's going on, as well as alternate methods of doing input optimization in keras so you won't have to deal with my janky code.
 Note that optimizing in the fourier space (as mentioned [here](https://distill.pub/2017/feature-visualization/)) is implemented, but not shown in the feat vis exmaples. I also add a random roll transformation which is not mentioned in the article.
 
+With slight modifications you can do some dumb stuff like activating as many neurons as you can.
+
+|  |  |
+| --- | --- |
+| ![featvis many 2](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/featvis_many_2.png "featvis many 2") | ![featvis many 3](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/featvis_many_3.png "featvis many 3") |
+
+
 You can also do neural style transfer, see neural_style_example.py
 
 ![Neural Style Example](https://github.com/PhilippeNguyen/kinopt/blob/master/assets/neural_style_1.png "Neural Style Example")
