@@ -26,6 +26,17 @@ def load_model(filepath,inserted_layers=None,
                ):
     """loads model like keras load_model, updates the input layer,
         as well inserts extra layers after the input
+        
+        Args:
+            filepath: path to the keras model
+            inserted_layers: list of list of layers to insert. layers can either be 
+                layer config objects, or the layers themselves.
+            custom_objects: dict, with key,val : (class_name,class)
+            initial_inputs: initial input for the model, can be tf.Tensor or np.array
+            new_output_layers: New output layers for the model, any layers occuring after
+                these layers are removed. Note: buggy.
+        Returns:
+            A keras model with inserted layers and layers removed
     """
     if new_output_layers is not None:
         warn('using new_output_layers is buggy')

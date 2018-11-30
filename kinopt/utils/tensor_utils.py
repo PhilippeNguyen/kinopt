@@ -8,6 +8,15 @@ Created on Thu Jul 26 23:25:34 2018
 from keras import backend as K
 
 def get_layer_output(model,layer_identifier):
+    '''Gets a tensor output from a layer in the model
+    
+        Args:
+            model: keras model
+            layer_identifier: str or int, the identifier for the layer, as 
+                found in the model.get_config()['layers']
+        
+        Returns: the output tensor from the given layer.
+    '''
     if isinstance(layer_identifier,str):
         active_layer = model.get_layer(layer_identifier)
         layer_output = active_layer.output
@@ -28,8 +37,14 @@ def get_layer_output(model,layer_identifier):
 def get_neuron(input_tensor,
                      batch_idx=None,feature_idx=None):
     '''Get specific subtensor of a 4D tensor (for images)
-        For easy reading.
-        TODO: change name/remove?Too specific for 2D image models.
+
+        Args:
+            batch_idx: int, batch index to use from the tensor, if None, uses
+                every batch. Can be a slice
+            batch_idx: int, feature/channel index to use from the tensor, if None, uses
+                every channel.  Can be a slice
+        Returns:
+            Tensor with only the batch_idx/feature_idx given
     '''
     batch_idx_s = slice(None) if batch_idx is None else batch_idx
     feature_idx_s = slice(None) if feature_idx is None else feature_idx
@@ -49,6 +64,8 @@ def get_neuron(input_tensor,
     for loss functions which compare two tensors/variables.
 '''
 def compare_external_input(model,compare_input,layer_identifier):
+    '''
+    '''
     layer_output = get_layer_output(model,layer_identifier)
     sub_func = K.function([model.input],[layer_output])
     compare_var = K.variable(sub_func([compare_input])[0])

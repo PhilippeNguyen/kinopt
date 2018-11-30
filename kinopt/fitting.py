@@ -17,6 +17,16 @@ from scipy.ndimage.interpolation import zoom
 from imageio import imsave
 
 def input_fit_var(fit_var,loss,optimizer,num_iter=500,verbose=1):
+    '''Fits a variable
+    
+        Args: 
+            fit_var: tf.Variable/K.variable to fit, 
+            loss: loss to minimize
+            optimizer: keras optimizer to use
+        
+        Returns:
+            Nothing, but the fit_var should now be fit
+    '''
     fit_t = as_list(fit_var)
     updates = optimizer.get_updates(loss=[loss],
                                      params=fit_t,
@@ -34,9 +44,19 @@ def input_fit_var(fit_var,loss,optimizer,num_iter=500,verbose=1):
             sys.stdout.flush()
     return
 
-def input_fit(fit_placeholder,loss,optimizer,init_img,
+def input_fit(fit_placeholder,loss,optimizer,init_val,
               num_iter=500,copy=True,verbose=1):
+    '''Fits a placeholder tensor
     
+        Args: 
+            fit_placeholder: placeholder tensor to fit, 
+            loss: loss to minimize
+            optimizer: keras optimizer to use
+            init_val: np.array, initial value for the placeholder
+        
+        Returns:
+            returns a fitted version of the placeholder value
+    '''
 
     grad,optimizer_updates = get_input_updates(optimizer,loss,fit_placeholder)
     
@@ -47,32 +67,29 @@ def input_fit(fit_placeholder,loss,optimizer,init_img,
                          name='input_optimizer')
     
     if copy:
-        img = init_img.copy()
+        val = init_val.copy()
     else:
-        img = init_img
+        val = init_val
     for i in range(num_iter):
 
-        this_loss,this_grad = opt_func([img])
-        img +=this_grad
+        this_loss,this_grad = opt_func([val])
+        val +=this_grad
         if verbose:
             sys.stdout.write('\r>> iter: %d , loss: %f' % (i,this_loss))
             sys.stdout.flush()
-    return img
+    return val
 
 
 #no need for extra_lr
-def input_fit_octaves(model,loss,optimizer,init_img,
+def input_fit_octaves(fit_placeholder,loss,optimizer,init_img,
                       model_shape,num_octaves=6,octave_scale=1.4,
                       num_iter=500,copy=True,
                       deprocessor=None,verbose=1):
     
-    model_input = model.input
-
-
-    grad,optimizer_updates = get_input_updates(optimizer,loss,model_input)
+    grad,optimizer_updates = get_input_updates(optimizer,loss,fit_placeholder)
     
     
-    opt_func = K.function([model_input],
+    opt_func = K.function([fit_placeholder],
                          [loss,grad],
                          updates=optimizer_updates,
                          name='input_optimizer')
