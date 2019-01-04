@@ -22,14 +22,31 @@ def get_input_updates(optimizer,loss,model_input):
     def fake_assign(new_val,name=None):
         return new_val
     setattr(model_input,'assign',fake_assign)
-    updates = optimizer.get_updates(loss=[loss],
-                                     params=[model_input],
-                                     )
-    for idx,update in enumerate(updates):
-        if (update.__class__.__name__ =='Tensor'
-            and update.op.inputs[0].name == model_input.name):
-            updated_param = updates.pop(idx)
-            break
-    grad = updated_param - model_input
-    return grad,updates
+    try:
+        '''This should work for standard keras optimizers
+        '''
+        updates = optimizer.get_updates(loss=[loss],
+                                         params=[model_input],
+                                         )
+        for idx,update in enumerate(updates):
+            if (update.__class__.__name__ =='Tensor'
+                and update.op.inputs[0].name == model_input.name):
+                updated_param = updates.pop(idx)
+                break
+        grad = updated_param - model_input
+        return grad,updates
+    except TypeError:
+        '''More hack-y for weightnorm optimizers, need to dig through the modified parameters
+            Luckily we know it lies at index -2 of the updates list.
+            If it isn't, abort.
+        '''
+        updates = optimizer.get_updates(loss=[loss],
+                                 params=[model_input],
+                                 constraints=[]
+                                 )
+        updated_param = updates.pop(-2)
+        assert updated_param.op.inputs[1].op.inputs[0].op.inputs[0].name == model_input.name
+        
+        grad = updated_param - model_input
+        return grad,updates
 

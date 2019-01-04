@@ -9,6 +9,7 @@ from kinopt.layers.tf_layers import (tf_layers_dict,
                                      ChannelDecorrelate,RandomRoll2D,
                                      Jitter2D,RandomResize2D,RandomRotate2D)
 from kinopt.layers import LogisticTransform,ImagenetPreprocessorTransform
+from kinopt.weightnorm import AdamWithWeightnorm
 import tensorflow as tf
 fs = os.path.sep
 K.set_learning_phase(False)
@@ -231,6 +232,7 @@ if args.fit_method == 'keras':
     '''
     num_iter= 1000
     optimizer = keras.optimizers.Adam(lr=0.05)
+#    optimizer = AdamWithWeightnorm(lr=0.05)
     if input_type == 'placeholder':
         out = kinopt.fitting.input_fit(input_tensor,loss,optimizer,
                                        init_img,num_iter=num_iter)

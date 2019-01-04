@@ -10,6 +10,8 @@ This project provides 3 main things:
 *  New layers which facilitate feature visualization and other types on input optimization.
 *  A way of using keras optimizers to optimize your input tensors**
 
+Update (2019/01/03) : I've updated the code to work with weight normalization optimizers (pulled straight from https://github.com/openai/weightnorm/blob/master/keras/weightnorm.py). All you need to do is load the optimizer from kinopt.weightnorm as you would any keras optimizer and it should work.
+
 ** Note: Most of this project was done awhile back and used kind of hack-y ways to accomplish some
 of these goals. Since then, I've figured out how to do some of these with mostly standard
 Keras/Tensorflow machinery. Both the old and the new ways are explained in featvis_long_tutorial.py

@@ -27,11 +27,17 @@ def input_fit_var(fit_var,loss,optimizer,num_iter=500,verbose=1):
         Returns:
             Nothing, but the fit_var should now be fit
     '''
-    fit_t = as_list(fit_var)
-    updates = optimizer.get_updates(loss=[loss],
-                                     params=fit_t,
-                                     )
-    
+
+    try:
+        fit_t = as_list(fit_var)
+        updates = optimizer.get_updates(loss=[loss],
+                                         params=fit_t,
+                                         )
+    except TypeError:
+        updates = optimizer.get_updates(loss=[loss],
+                                 params=fit_t,
+                                 constraints=[]
+                                 )
     opt_func = K.function([],
                          [loss],
                          updates=updates,

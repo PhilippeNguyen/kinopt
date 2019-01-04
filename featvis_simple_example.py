@@ -9,6 +9,7 @@ from kinopt.layers.tf_layers import (tf_layers_dict,
                                      ChannelDecorrelate,RandomRoll2D,
                                      Jitter2D,RandomResize2D,RandomRotate2D)
 from kinopt.layers import LogisticTransform,ImagenetPreprocessorTransform
+from kinopt.weightnorm import AdamWithWeightnorm
 fs = os.path.sep
 K.set_learning_phase(False)
 
@@ -93,6 +94,9 @@ neuron = kinopt.utils.get_neuron(fit_tensor,
                                      feature_idx=args.neuron_index)
 loss = -(K.mean(neuron))
 optimizer = keras.optimizers.Adam(lr=0.05)
+
+#you can also try using a weight normalized optimizer
+#optimizer = AdamWithWeightnorm(lr=0.05)
 
 #fit
 out = kinopt.fitting.input_fit(input_tensor,loss,optimizer,
